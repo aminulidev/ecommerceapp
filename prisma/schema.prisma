@@ -1,0 +1,124 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  password  String?
+  avatar    String?
+  role      String   @default("VIEWER") // 'ADMIN', 'MANAGER', 'VIEWER'
+  orders    Order[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Order {
+  id               String             @id @default(uuid())
+  orderNumber      String             @unique
+  customerId       String
+  customer         User               @relation(fields: [customerId], references: [id])
+  customerName     String
+  customerEmail    String
+  customerAvatar   String?
+  status           String // PENDING, DELIVERED, CANCELLED, READY_TO_PICKUP, OUT_FOR_DELIVERY
+  paymentMethod    String // PAYPAL, MASTERCARD, VISA, COD
+  paymentStatus    String // PAID, PENDING, FAILED
+  total            Float
+  subtotal         Float
+  shippingFee      Float
+  tax              Float
+  orderDate        DateTime
+  items            OrderItem[]
+  shippingAddress  Address?           @relation("ShippingAddress")
+  billingAddress   Address?           @relation("BillingAddress")
+  shippingActivity ShippingActivity[]
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+}
+
+model OrderItem {
+  id           String  @id @default(uuid())
+  orderId      String
+  order        Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId    String
+  product      Product @relation(fields: [productId], references: [id])
+  productName  String
+  productImage String?
+  price        Float
+  quantity     Int
+  total        Float
+}
+
+model Product {
+  id          String      @id @default(uuid())
+  name        String
+  description String
+  image       String?
+  categoryId  String
+  category    Category    @relation(fields: [categoryId], references: [id])
+  price       Float
+  stock       Int
+  sku         String      @unique
+  orderItems  OrderItem[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model Category {
+  id            String    @id @default(uuid())
+  name          String
+  description   String
+  icon          String?
+  totalProducts Int       @default(0)
+  totalEarning  Float     @default(0)
+  products      Product[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Transaction {
+  id            String   @id @default(uuid())
+  invoiceNumber String   @unique
+  type          String // WALLET, BANK_TRANSFER, PAYPAL, MASTERCARD
+  description   String
+  amount        Float
+  status        String // COMPLETED, PENDING, FAILED
+  date          DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Address {
+  id           String  @id @default(uuid())
+  fullName     String
+  addressLine1 String
+  addressLine2 String?
+  city         String
+  state        String
+  country      String
+  postalCode   String
+  phone        String
+
+  shippingOrder   Order?  @relation("ShippingAddress", fields: [shippingOrderId], references: [id])
+  shippingOrderId String? @unique
+
+  billingOrder   Order?  @relation("BillingAddress", fields: [billingOrderId], references: [id])
+  billingOrderId String? @unique
+}
+
+model ShippingActivity {
+  id          String   @id @default(uuid())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status      String
+  description String
+  timestamp   DateTime
+  location    String?
+}
