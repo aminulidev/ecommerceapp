@@ -1,8 +1,41 @@
-
 import { NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
+
+export async function GET(
+    req: Request,
+    { params }: { params: Promise<{ orderId: string }> }
+) {
+    try {
+        const { orderId } = await params;
+        const session = await getServerSession(authOptions)
+        if (!session) {
+            return new NextResponse("Unauthorized", { status: 401 })
+        }
+
+        const order = await prisma.order.findUnique({
+            where: {
+                id: orderId
+            },
+            include: {
+                items: true,
+                shippingAddress: true,
+                billingAddress: true,
+                shippingActivity: true
+            }
+        })
+
+        if (!order) {
+            return new NextResponse("Not Found", { status: 404 })
+        }
+
+        return NextResponse.json(order)
+    } catch (error) {
+        console.error("[ORDER_GET]", error)
+        return new NextResponse("Internal Error", { status: 500 })
+    }
+}
 
 export async function PATCH(
     req: Request,

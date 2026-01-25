@@ -1,200 +1,162 @@
-
 "use client"
 
-import { useOrders } from "@/hooks/use-orders"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Skeleton } from "@/components/ui/skeleton"
+import * as React from "react"
+import { useOrders, useUpdateOrderStatus } from "@/hooks/use-orders"
+import { OrdersTable } from "@/components/orders/orders-table"
+import { Input } from "@/components/ui/input"
 import {
-    MoreHorizontal,
-    Eye,
-    Truck,
-    CheckCircle2,
-    XCircle,
-    Clock
-} from "lucide-react"
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
-import { useQueryClient, useMutation } from "@tanstack/react-query"
-import { useState } from "react"
-
-const statusConfig = {
-    PENDING: { label: "Pending", variant: "outline" as const, icon: Clock },
-    READY_TO_PICKUP: { label: "Ready", variant: "secondary" as const, icon: Package },
-    OUT_FOR_DELIVERY: { label: "Shipping", variant: "secondary" as const, icon: Truck },
-    DELIVERED: { label: "Delivered", variant: "default" as const, icon: CheckCircle2 },
-    CANCELLED: { label: "Cancelled", variant: "destructive" as const, icon: XCircle },
-}
-
-// Mocking Package icon because I'm not sure if it's imported correctly in sidecar but I'll add it to the imports
-import { Package, Check, Loader2 } from "lucide-react"
+import { Search, RotateCcw } from "lucide-react"
+import {
+    Pagination,
+    PaginationContent,
+    PaginationItem,
+    PaginationLink,
+    PaginationNext,
+    PaginationPrevious,
+} from "@/components/ui/pagination"
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export default function OrdersPage() {
-    const { data: orders, isLoading } = useOrders()
-    const queryClient = useQueryClient()
-    const [updatingId, setUpdatingId] = useState<string | null>(null)
+    const [page, setPage] = React.useState(1)
+    const [search, setSearch] = React.useState("")
+    const [status, setStatus] = React.useState("ALL")
+    const [debouncedSearch, setDebouncedSearch] = React.useState("")
 
-    const updateStatusMutation = useMutation({
-        mutationFn: async ({ orderId, status }: { orderId: string, status: string }) => {
-            const response = await fetch(`/api/orders/${orderId}`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ status })
-            })
-            if (!response.ok) throw new Error("Failed to update status")
-            return response.json()
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["orders"] })
-            setUpdatingId(null)
-        },
-        onError: () => {
-            setUpdatingId(null)
-        }
-    })
+    // Debounce search
+    React.useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearch(search)
+            setPage(1)
+        }, 500)
+        return () => clearTimeout(timer)
+    }, [search])
 
-    const handleStatusUpdate = (orderId: string, status: string) => {
-        setUpdatingId(orderId)
-        updateStatusMutation.mutate({ orderId, status })
-    }
+    const { data, isLoading } = useOrders({ page, search: debouncedSearch, status })
+    const updateStatus = useUpdateOrderStatus()
 
-    if (isLoading) {
-        return <OrdersSkeleton />
+    const handleReset = () => {
+        setSearch("")
+        setStatus("ALL")
+        setPage(1)
     }
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
-                    <h2 className="text-3xl font-bold tracking-tight">Orders</h2>
-                    <p className="text-muted-foreground">
-                        Manage and track all customer orders
+                    <h1 className="text-3xl font-bold tracking-tight">Orders</h1>
+                    <p className="text-muted-foreground">Manage and track customer orders</p>
+                </div>
+            </div>
+
+            <Card>
+                <CardHeader className="pb-3">
+                    <CardTitle>Filter Orders</CardTitle>
+                    <CardDescription>Search by order number, customer name or email</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex flex-col gap-4 md:flex-row">
+                        <div className="relative flex-1">
+                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Search orders..."
+                                className="pl-9"
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                            />
+                        </div>
+                        <Select value={status} onValueChange={setStatus}>
+                            <SelectTrigger className="w-full md:w-[200px]">
+                                <SelectValue placeholder="Status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="ALL">All Status</SelectItem>
+                                <SelectItem value="PENDING">Pending</SelectItem>
+                                <SelectItem value="READY_TO_PICKUP">Ready to Pickup</SelectItem>
+                                <SelectItem value="OUT_FOR_DELIVERY">Out for Delivery</SelectItem>
+                                <SelectItem value="DELIVERED">Delivered</SelectItem>
+                                <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <Button variant="outline" size="icon" onClick={handleReset}>
+                            <RotateCcw className="h-4 w-4" />
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
+
+            {isLoading ? (
+                <div className="space-y-4">
+                    {[...Array(5)].map((_, i) => (
+                        <Skeleton key={i} className="h-16 w-full rounded-md" />
+                    ))}
+                </div>
+            ) : data?.orders.length ? (
+                <div className="space-y-4">
+                    <OrdersTable
+                        orders={data.orders}
+                        onStatusUpdate={(id, s) => updateStatus.mutate({ orderId: id, status: s })}
+                    />
+
+                    {data.totalPages > 1 && (
+                        <Pagination>
+                            <PaginationContent>
+                                <PaginationItem>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        disabled={page === 1}
+                                        onClick={() => setPage(p => Math.max(1, p - 1))}
+                                    >
+                                        <PaginationPrevious className="h-4 w-4" />
+                                    </Button>
+                                </PaginationItem>
+                                {[...Array(data.totalPages)].map((_, i) => (
+                                    <PaginationItem key={i}>
+                                        <PaginationLink
+                                            isActive={page === i + 1}
+                                            onClick={() => setPage(i + 1)}
+                                        >
+                                            {i + 1}
+                                        </PaginationLink>
+                                    </PaginationItem>
+                                ))}
+                                <PaginationItem>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        disabled={page === data.totalPages}
+                                        onClick={() => setPage(p => Math.min(data.totalPages, p + 1))}
+                                    >
+                                        <PaginationNext className="h-4 w-4" />
+                                    </Button>
+                                </PaginationItem>
+                            </PaginationContent>
+                        </Pagination>
+                    )}
+                </div>
+            ) : (
+                <div className="flex h-[400px] flex-col items-center justify-center rounded-md border border-dashed bg-card text-center animate-in fade-in duration-500">
+                    <div className="rounded-full bg-muted p-4">
+                        <Search className="h-8 w-8 text-muted-foreground" />
+                    </div>
+                    <h3 className="mt-4 text-lg font-semibold">No orders found</h3>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                        Try adjusting your search or filters to find what you&apos;re looking for.
                     </p>
+                    <Button variant="outline" className="mt-4" onClick={handleReset}>
+                        Clear all filters
+                    </Button>
                 </div>
-            </div>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>Recent Orders</CardTitle>
-                    <CardDescription>A list of orders from your store</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="relative w-full overflow-auto">
-                        <table className="w-full caption-bottom text-sm">
-                            <thead className="[&_tr]:border-b">
-                                <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
-                                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Order</th>
-                                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Customer</th>
-                                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Status</th>
-                                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Date</th>
-                                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Total</th>
-                                    <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="[&_tr:last-child]:border-0">
-                                {orders?.map((order: any) => {
-                                    const status = statusConfig[order.status as keyof typeof statusConfig] || statusConfig.PENDING
-                                    return (
-                                        <tr key={order.id} className="border-b transition-colors hover:bg-muted/50">
-                                            <td className="p-4 align-middle font-medium">
-                                                #{order.orderNumber}
-                                            </td>
-                                            <td className="p-4 align-middle">
-                                                <div className="flex flex-col">
-                                                    <span className="font-medium">{order.customerName}</span>
-                                                    <span className="text-xs text-muted-foreground">{order.customerEmail}</span>
-                                                </div>
-                                            </td>
-                                            <td className="p-4 align-middle">
-                                                <Badge variant={status.variant} className="gap-1 px-2">
-                                                    <status.icon className="h-3 w-3" />
-                                                    {status.label}
-                                                </Badge>
-                                            </td>
-                                            <td className="p-4 align-middle text-muted-foreground">
-                                                {new Date(order.orderDate).toLocaleDateString("en-US", {
-                                                    month: "short",
-                                                    day: "2-digit",
-                                                    year: "numeric",
-                                                })}
-                                            </td>
-                                            <td className="p-4 align-middle font-medium">
-                                                ${order.total.toFixed(2)}
-                                            </td>
-                                            <td className="p-4 align-middle text-right">
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button variant="ghost" size="icon" disabled={updatingId === order.id}>
-                                                            {updatingId === order.id ? (
-                                                                <Loader2 className="h-4 w-4 animate-spin" />
-                                                            ) : (
-                                                                <MoreHorizontal className="h-4 w-4" />
-                                                            )}
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end">
-                                                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                        <DropdownMenuItem className="gap-2 text-primary">
-                                                            <Eye className="h-4 w-4" /> View Details
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuSeparator />
-                                                        <DropdownMenuLabel className="text-[10px] uppercase text-muted-foreground">Change Status</DropdownMenuLabel>
-                                                        {Object.entries(statusConfig).map(([key, config]) => (
-                                                            <DropdownMenuItem
-                                                                key={key}
-                                                                className="gap-2"
-                                                                onClick={() => handleStatusUpdate(order.id, key)}
-                                                                disabled={order.status === key}
-                                                            >
-                                                                <config.icon className="h-4 w-4" />
-                                                                {config.label}
-                                                                {order.status === key && <Check className="h-3 w-3 ml-auto" />}
-                                                            </DropdownMenuItem>
-                                                        ))}
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
-                                            </td>
-                                        </tr>
-                                    )
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
-                </CardContent>
-            </Card>
-        </div>
-    )
-}
-
-function OrdersSkeleton() {
-    return (
-        <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div className="space-y-2">
-                    <Skeleton className="h-8 w-[150px]" />
-                    <Skeleton className="h-4 w-[250px]" />
-                </div>
-            </div>
-            <Card>
-                <CardHeader>
-                    <Skeleton className="h-6 w-[100px]" />
-                    <Skeleton className="h-4 w-[200px]" />
-                </CardHeader>
-                <CardContent>
-                    <div className="space-y-4">
-                        {[...Array(5)].map((_, i) => (
-                            <Skeleton key={i} className="h-12 w-full" />
-                        ))}
-                    </div>
-                </CardContent>
-            </Card>
+            )}
         </div>
     )
 }

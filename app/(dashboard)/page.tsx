@@ -20,7 +20,7 @@ export default function DashboardPage() {
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
             {/* KPI Cards */}
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-6 md:grid-cols-2 2xl:grid-cols-4">
                 <WidgetErrorBoundary fallbackTitle="Sales Stats">
                     <StatsCard
                         title="Total Sales"

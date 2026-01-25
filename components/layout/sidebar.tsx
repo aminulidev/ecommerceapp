@@ -84,7 +84,7 @@ export function Sidebar({ className }: SidebarProps) {
                                 <LayoutDashboard className="w-5 h-5" />
                             </div>
                             <span className={cn("transition-all", collapsed ? "opacity-0 w-0 hidden" : "opacity-100")}>
-                                Vuexy
+                                Ecom
                             </span>
                         </h2>
                     </div>
@@ -94,9 +94,8 @@ export function Sidebar({ className }: SidebarProps) {
                                 key={route.href}
                                 variant={route.active ? "secondary" : "ghost"}
                                 className={cn(
-                                    "w-full justify-start gap-3",
-                                    route.active && "bg-sidebar-accent text-sidebar-primary-foreground font-medium border-r-2 border-primary rounded-r-none rounded-l-md",
-                                    !route.active && "text-muted-foreground hover:text-foreground hover:bg-transparent"
+                                    "w-full justify-start gap-3 border-r-2 rounded-r-none rounded-l-md text-muted-foreground border-transparent hover:border-primary hover:bg-sidebar-accent hover:text-primary",
+                                    route.active && "bg-sidebar-accent text-primary font-medium border-primary",
                                 )}
                                 asChild
                             >
