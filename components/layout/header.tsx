@@ -14,12 +14,16 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Bell, Search, Sun, Moon, Laptop } from "lucide-react"
 import { useSession, signOut } from "next-auth/react"
 import { MobileSidebar } from "./sidebar"
+import { useTheme } from "next-themes"
+import { CommandMenu } from "@/components/shared/command-menu"
 
 export function Header() {
     const { data: session } = useSession()
+    const { setTheme, theme } = useTheme()
 
     return (
         <header className="h-16 border-b bg-background/95 backdrop-blur px-4 flex items-center justify-between sticky top-0 z-50">
+            <CommandMenu />
             <div className="flex items-center gap-4">
                 <MobileSidebar />
                 <div className="relative hidden md:block w-96">
@@ -27,12 +31,33 @@ export function Header() {
                     <Input
                         type="search"
                         placeholder="Search (Ctrl+K)"
-                        className="pl-9 bg-muted/50 border-none focus-visible:bg-background transition-colors"
+                        className="pl-9 bg-muted/50 border-none focus-visible:bg-background transition-colors cursor-pointer"
+                        readOnly
+                        onClick={() => {
+                            const event = new KeyboardEvent('keydown', {
+                                key: 'k',
+                                ctrlKey: true,
+                                bubbles: true,
+                                cancelable: true
+                            });
+                            document.dispatchEvent(event);
+                        }}
                     />
                 </div>
             </div>
 
             <div className="flex items-center gap-4">
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                    className="text-muted-foreground hover:text-foreground"
+                >
+                    <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                    <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                    <span className="sr-only">Toggle theme</span>
+                </Button>
+
                 <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-foreground">
                     <Bell className="h-5 w-5" />
                     <span className="absolute top-2 right-2 h-2 w-2 bg-red-500 rounded-full border-2 border-background animate-pulse" />
@@ -56,7 +81,7 @@ export function Header() {
                                 <p className="text-xs leading-none text-muted-foreground">
                                     {session?.user?.email}
                                 </p>
-                                <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-1 text-xs font-medium text-primary ring-1 ring-inset ring-primary/20 mt-2 w-fit">
+                                <span className="inline-flex items-center rounded-md bg_primary/10 px-2 py-1 text-xs font-medium text-primary ring-1 ring-inset ring-primary/20 mt-2 w-fit">
                                     {session?.user?.role || "VIEWER"}
                                 </span>
                             </div>
