@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useOrders, useUpdateOrderStatus } from "@/hooks/use-orders"
+import { useInfiniteOrders, useUpdateOrderStatus } from "@/hooks/use-orders"
 import { OrdersTable } from "@/components/orders/orders-table"
 import { Input } from "@/components/ui/input"
 import {
@@ -13,19 +13,11 @@ import {
 } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { Search, RotateCcw } from "lucide-react"
-import {
-    Pagination,
-    PaginationContent,
-    PaginationItem,
-    PaginationLink,
-    PaginationNext,
-    PaginationPrevious,
-} from "@/components/ui/pagination"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
+import { InfiniteScroll } from "@/components/shared/infinite-scroll"
 
 export default function OrdersPage() {
-    const [page, setPage] = React.useState(1)
     const [search, setSearch] = React.useState("")
     const [status, setStatus] = React.useState("ALL")
     const [debouncedSearch, setDebouncedSearch] = React.useState("")
@@ -34,19 +26,26 @@ export default function OrdersPage() {
     React.useEffect(() => {
         const timer = setTimeout(() => {
             setDebouncedSearch(search)
-            setPage(1)
         }, 500)
         return () => clearTimeout(timer)
     }, [search])
 
-    const { data, isLoading } = useOrders({ page, search: debouncedSearch, status })
+    const {
+        data,
+        isLoading,
+        fetchNextPage,
+        hasNextPage,
+        isFetchingNextPage
+    } = useInfiniteOrders({ search: debouncedSearch, status })
+
     const updateStatus = useUpdateOrderStatus()
 
     const handleReset = () => {
         setSearch("")
         setStatus("ALL")
-        setPage(1)
     }
+
+    const orders = data?.pages.flatMap((page) => page.orders) || []
 
     return (
         <div className="space-y-6">
@@ -99,50 +98,17 @@ export default function OrdersPage() {
                         <Skeleton key={i} className="h-16 w-full rounded-md" />
                     ))}
                 </div>
-            ) : data?.orders.length ? (
-                <div className="space-y-4">
+            ) : orders.length ? (
+                <InfiniteScroll
+                    fetchNextPage={fetchNextPage}
+                    hasNextPage={!!hasNextPage}
+                    isFetchingNextPage={isFetchingNextPage}
+                >
                     <OrdersTable
-                        orders={data.orders}
+                        orders={orders}
                         onStatusUpdate={(id, s) => updateStatus.mutate({ orderId: id, status: s })}
                     />
-
-                    {data.totalPages > 1 && (
-                        <Pagination>
-                            <PaginationContent>
-                                <PaginationItem>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        disabled={page === 1}
-                                        onClick={() => setPage(p => Math.max(1, p - 1))}
-                                    >
-                                        <PaginationPrevious className="h-4 w-4" />
-                                    </Button>
-                                </PaginationItem>
-                                {[...Array(data.totalPages)].map((_, i) => (
-                                    <PaginationItem key={i}>
-                                        <PaginationLink
-                                            isActive={page === i + 1}
-                                            onClick={() => setPage(i + 1)}
-                                        >
-                                            {i + 1}
-                                        </PaginationLink>
-                                    </PaginationItem>
-                                ))}
-                                <PaginationItem>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        disabled={page === data.totalPages}
-                                        onClick={() => setPage(p => Math.min(data.totalPages, p + 1))}
-                                    >
-                                        <PaginationNext className="h-4 w-4" />
-                                    </Button>
-                                </PaginationItem>
-                            </PaginationContent>
-                        </Pagination>
-                    )}
-                </div>
+                </InfiniteScroll>
             ) : (
                 <div className="flex h-[400px] flex-col items-center justify-center rounded-md border border-dashed bg-card text-center animate-in fade-in duration-500">
                     <div className="rounded-full bg-muted p-4">

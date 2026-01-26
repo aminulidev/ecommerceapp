@@ -18,63 +18,47 @@ export async function GET(req: Request) {
 
         const skip = (page - 1) * limit
 
-        const where: any = {}
+        const where: any = {
+            role: "VIEWER" // Customers usually have VIEWER role
+        }
+
         if (search) {
             where.OR = [
                 { name: { contains: search } },
-                { description: { contains: search } },
+                { email: { contains: search } },
             ]
         }
 
-        const [categories, total] = await Promise.all([
-            prisma.category.findMany({
+        const [customers, total] = await Promise.all([
+            prisma.user.findMany({
                 where,
+                select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    avatar: true,
+                    createdAt: true,
+                    _count: {
+                        select: { orders: true }
+                    }
+                },
                 skip,
                 take: limit,
                 orderBy: {
-                    name: 'asc'
+                    createdAt: 'desc'
                 }
             }),
-            prisma.category.count({ where }),
+            prisma.user.count({ where }),
         ])
 
         return NextResponse.json({
-            categories,
+            customers,
             total,
             page,
             totalPages: Math.ceil(total / limit),
         })
     } catch (error) {
-        console.error("[CATEGORIES_GET]", error)
-        return new NextResponse("Internal Error", { status: 500 })
-    }
-}
-
-export async function POST(req: Request) {
-    try {
-        const session = await getServerSession(authOptions)
-        if (!session) {
-            return new NextResponse("Unauthorized", { status: 401 })
-        }
-
-        const body = await req.json()
-        const { name, description, icon } = body
-
-        if (!name || !description) {
-            return new NextResponse("Name and description are required", { status: 400 })
-        }
-
-        const category = await prisma.category.create({
-            data: {
-                name,
-                description,
-                icon
-            }
-        })
-
-        return NextResponse.json(category)
-    } catch (error) {
-        console.error("[CATEGORIES_POST]", error)
+        console.error("[CUSTOMERS_GET]", error)
         return new NextResponse("Internal Error", { status: 500 })
     }
 }

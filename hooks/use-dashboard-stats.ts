@@ -17,6 +17,18 @@ export interface DashboardStats {
         image?: string
         sales: number
     }[]
+    categoryData: {
+        name: string
+        value: number
+    }[]
+    orderStatusData: {
+        name: string
+        value: number
+    }[]
+    customerGrowthData: {
+        month: string
+        customers: number
+    }[]
 }
 
 const fetchDashboardStats = async (): Promise<DashboardStats> => {

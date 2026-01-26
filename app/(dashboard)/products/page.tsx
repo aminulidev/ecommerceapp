@@ -1,11 +1,12 @@
-
 "use client"
 
-import { useProducts } from "@/hooks/use-products"
+import * as React from "react"
+import { useInfiniteProducts } from "@/hooks/use-products"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import {
     Plus,
     MoreHorizontal,
@@ -13,7 +14,9 @@ import {
     Trash2,
     ExternalLink,
     Package,
-    AlertCircle
+    AlertCircle,
+    Search,
+    RotateCcw
 } from "lucide-react"
 import {
     DropdownMenu,
@@ -24,13 +27,32 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import Link from "next/link"
+import { InfiniteScroll } from "@/components/shared/infinite-scroll"
 
 export default function ProductsPage() {
-    const { data: products, isLoading } = useProducts()
+    const [search, setSearch] = React.useState("")
+    const [debouncedSearch, setDebouncedSearch] = React.useState("")
 
-    if (isLoading) {
-        return <ProductsSkeleton />
+    React.useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearch(search)
+        }, 500)
+        return () => clearTimeout(timer)
+    }, [search])
+
+    const {
+        data,
+        isLoading,
+        fetchNextPage,
+        hasNextPage,
+        isFetchingNextPage
+    } = useInfiniteProducts({ search: debouncedSearch })
+
+    const handleReset = () => {
+        setSearch("")
     }
+
+    const products = data?.pages.flatMap((page) => page.products) || []
 
     return (
         <div className="space-y-6">
@@ -49,93 +71,130 @@ export default function ProductsPage() {
             </div>
 
             <Card>
-                <CardHeader>
-                    <CardTitle>All Products</CardTitle>
-                    <CardDescription>A list of all products in your inventory</CardDescription>
+                <CardHeader className="pb-3">
+                    <CardTitle>Filter Products</CardTitle>
+                    <CardDescription>Search by name, description or SKU</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="relative w-full overflow-auto">
-                        <table className="w-full caption-bottom text-sm">
-                            <thead className="[&_tr]:border-b">
-                                <tr className="border-b transition-colors hover:bg-muted/50">
-                                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Product</th>
-                                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">SKU</th>
-                                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Category</th>
-                                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Price</th>
-                                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Stock</th>
-                                    <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="[&_tr:last-child]:border-0">
-                                {products?.map((product: any) => (
-                                    <tr key={product.id} className="border-b transition-colors hover:bg-muted/50">
-                                        <td className="p-4 align-middle">
-                                            <div className="flex items-center gap-3">
-                                                <div className="relative h-10 w-10 overflow-hidden rounded-md border bg-muted">
-                                                    {product.image ? (
-                                                        /* eslint-disable-next-line @next/next/no-img-element */
-                                                        <img
-                                                            src={product.image}
-                                                            alt={product.name}
-                                                            className="h-full w-full object-cover"
-                                                        />
-                                                    ) : (
-                                                        <Package className="h-6 w-6 m-auto mt-2 text-muted-foreground" />
-                                                    )}
-                                                </div>
-                                                <span className="font-medium">{product.name}</span>
-                                            </div>
-                                        </td>
-                                        <td className="p-4 align-middle font-mono text-xs text-muted-foreground">
-                                            {product.sku}
-                                        </td>
-                                        <td className="p-4 align-middle">
-                                            <Badge variant="secondary">
-                                                {product.category?.name}
-                                            </Badge>
-                                        </td>
-                                        <td className="p-4 align-middle font-medium">
-                                            ${product.price.toFixed(2)}
-                                        </td>
-                                        <td className="p-4 align-middle">
-                                            <div className="flex items-center gap-2">
-                                                <span className={product.stock <= 5 ? "text-destructive font-bold" : ""}>
-                                                    {product.stock}
-                                                </span>
-                                                {product.stock <= 5 && (
-                                                    <AlertCircle className="h-4 w-4 text-destructive" />
-                                                )}
-                                            </div>
-                                        </td>
-                                        <td className="p-4 align-middle text-right">
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" size="icon">
-                                                        <MoreHorizontal className="h-4 w-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                    <DropdownMenuItem asChild>
-                                                        <Link href={`/products/${product.id}`} className="flex items-center gap-2">
-                                                            <Pencil className="h-4 w-4" /> Edit Product
-                                                        </Link>
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem className="flex items-center gap-2">
-                                                        <ExternalLink className="h-4 w-4" /> View Store
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuSeparator />
-                                                    <DropdownMenuItem className="flex items-center gap-2 text-destructive">
-                                                        <Trash2 className="h-4 w-4" /> Delete Product
-                                                    </DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                    <div className="flex flex-col gap-4 md:flex-row">
+                        <div className="relative flex-1">
+                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Search products..."
+                                className="pl-9"
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                            />
+                        </div>
+                        <Button variant="outline" size="icon" onClick={handleReset}>
+                            <RotateCcw className="h-4 w-4" />
+                        </Button>
                     </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>All Products</CardTitle>
+                    <CardDescription>Showing {products.length} products</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    {isLoading ? (
+                        <div className="space-y-4">
+                            {[...Array(5)].map((_, i) => (
+                                <Skeleton key={i} className="h-12 w-full" />
+                            ))}
+                        </div>
+                    ) : (
+                        <InfiniteScroll
+                            fetchNextPage={fetchNextPage}
+                            hasNextPage={!!hasNextPage}
+                            isFetchingNextPage={isFetchingNextPage}
+                        >
+                            <div className="relative w-full overflow-auto">
+                                <table className="w-full caption-bottom text-sm">
+                                    <thead className="[&_tr]:border-b">
+                                        <tr className="border-b transition-colors hover:bg-muted/50">
+                                            <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Product</th>
+                                            <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">SKU</th>
+                                            <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Category</th>
+                                            <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Price</th>
+                                            <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Stock</th>
+                                            <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="[&_tr:last-child]:border-0">
+                                        {products.map((product: any) => (
+                                            <tr key={product.id} className="border-b transition-colors hover:bg-muted/50">
+                                                <td className="p-4 align-middle">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="relative h-10 w-10 overflow-hidden rounded-md border bg-muted">
+                                                            {product.image ? (
+                                                                /* eslint-disable-next-line @next/next/no-img-element */
+                                                                <img
+                                                                    src={product.image}
+                                                                    alt={product.name}
+                                                                    className="h-full w-full object-cover"
+                                                                />
+                                                            ) : (
+                                                                <Package className="h-6 w-6 m-auto mt-2 text-muted-foreground" />
+                                                            )}
+                                                        </div>
+                                                        <span className="font-medium">{product.name}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="p-4 align-middle font-mono text-xs text-muted-foreground">
+                                                    {product.sku}
+                                                </td>
+                                                <td className="p-4 align-middle">
+                                                    <Badge variant="secondary">
+                                                        {product.category?.name}
+                                                    </Badge>
+                                                </td>
+                                                <td className="p-4 align-middle font-medium">
+                                                    ${product.price.toFixed(2)}
+                                                </td>
+                                                <td className="p-4 align-middle">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className={product.stock <= 5 ? "text-destructive font-bold" : ""}>
+                                                            {product.stock}
+                                                        </span>
+                                                        {product.stock <= 5 && (
+                                                            <AlertCircle className="h-4 w-4 text-destructive" />
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td className="p-4 align-middle text-right">
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button variant="ghost" size="icon">
+                                                                <MoreHorizontal className="h-4 w-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end">
+                                                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                                            <DropdownMenuItem asChild>
+                                                                <Link href={`/products/${product.id}`} className="flex items-center gap-2">
+                                                                    <Pencil className="h-4 w-4" /> Edit Product
+                                                                </Link>
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem className="flex items-center gap-2">
+                                                                <ExternalLink className="h-4 w-4" /> View Store
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuSeparator />
+                                                            <DropdownMenuItem className="flex items-center gap-2 text-destructive">
+                                                                <Trash2 className="h-4 w-4" /> Delete Product
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </InfiniteScroll>
+                    )}
                 </CardContent>
             </Card>
         </div>

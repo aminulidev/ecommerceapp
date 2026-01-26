@@ -1,3 +1,4 @@
+
 "use client"
 
 import { StatsCard } from "@/components/dashboard/stats-card"
@@ -7,6 +8,7 @@ import { useDashboardStats } from "@/hooks/use-dashboard-stats"
 import { Users, ShoppingBag, DollarSign, Package } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { WidgetErrorBoundary } from "@/components/shared/error-boundary"
+import { CustomerGrowthChart, DistributionChart } from "@/components/dashboard/overview-charts"
 
 export default function DashboardPage() {
     const { data, isLoading } = useDashboardStats()
@@ -74,6 +76,39 @@ export default function DashboardPage() {
                     <WidgetErrorBoundary fallbackTitle="Popular Products">
                         <PopularProducts products={data.popularProducts} />
                     </WidgetErrorBoundary>
+                </div>
+            </div>
+
+            {/* Extra Charts Grid */}
+            <div className="grid gap-6 md:grid-cols-7">
+                <div className="col-span-4">
+                    <WidgetErrorBoundary fallbackTitle="Customer Growth">
+                        <CustomerGrowthChart data={data.customerGrowthData} />
+                    </WidgetErrorBoundary>
+                </div>
+                <div className="col-span-3">
+                    <WidgetErrorBoundary fallbackTitle="Category Distribution">
+                        <DistributionChart
+                            data={data.categoryData}
+                            title="Categories"
+                            description="Product distribution by category"
+                        />
+                    </WidgetErrorBoundary>
+                </div>
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-7">
+                <div className="col-span-3">
+                    <WidgetErrorBoundary fallbackTitle="Order Status">
+                        <DistributionChart
+                            data={data.orderStatusData}
+                            title="Order Status"
+                            description="Distribution of all orders by status"
+                        />
+                    </WidgetErrorBoundary>
+                </div>
+                <div className="col-span-4 flex items-center justify-center border-2 border-dashed rounded-xl p-8 text-muted-foreground italic">
+                    More widgets coming soon...
                 </div>
             </div>
         </div>

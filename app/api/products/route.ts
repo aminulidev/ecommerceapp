@@ -11,16 +11,43 @@ export async function GET(req: Request) {
             return new NextResponse("Unauthorized", { status: 401 })
         }
 
-        const products = await prisma.product.findMany({
-            include: {
-                category: true
-            },
-            orderBy: {
-                createdAt: 'desc'
-            }
-        })
+        const { searchParams } = new URL(req.url)
+        const page = parseInt(searchParams.get("page") || "1")
+        const limit = parseInt(searchParams.get("limit") || "10")
+        const search = searchParams.get("search") || ""
 
-        return NextResponse.json(products)
+        const skip = (page - 1) * limit
+
+        const where: any = {}
+        if (search) {
+            where.OR = [
+                { name: { contains: search } },
+                { description: { contains: search } },
+                { sku: { contains: search } },
+            ]
+        }
+
+        const [products, total] = await Promise.all([
+            prisma.product.findMany({
+                where,
+                include: {
+                    category: true
+                },
+                skip,
+                take: limit,
+                orderBy: {
+                    createdAt: 'desc'
+                }
+            }),
+            prisma.product.count({ where }),
+        ])
+
+        return NextResponse.json({
+            products,
+            total,
+            page,
+            totalPages: Math.ceil(total / limit),
+        })
     } catch (error) {
         console.error("[PRODUCTS_GET]", error)
         return new NextResponse("Internal Error", { status: 500 })

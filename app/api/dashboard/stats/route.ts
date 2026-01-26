@@ -78,12 +78,45 @@ export async function GET() {
             sales: Math.floor(Math.random() * 500) + 50 // Mock sales count
         }))
 
+        // 6. Category Distribution
+        const categories = await prisma.category.findMany({
+            select: {
+                name: true,
+                totalProducts: true
+            }
+        })
+        const categoryData = categories.map(c => ({
+            name: c.name,
+            value: c.totalProducts
+        }))
+
+        // 7. Order Status Distribution
+        const orderStatusCounts = await prisma.order.groupBy({
+            by: ['status'],
+            _count: {
+                _all: true
+            }
+        })
+        const orderStatusData = orderStatusCounts.map(s => ({
+            name: s.status,
+            value: s._count._all
+        }))
+
+        // 8. Customer Growth Mock (Last 6 months)
+        const customerGrowthData = months.slice(0, 6).map((m, i) => ({
+            month: m,
+            customers: Math.floor(Math.random() * 100) + 200 + (i * 20)
+        }))
+
         return NextResponse.json({
             totalSales,
             totalCustomers,
             totalProducts,
             revenueData,
-            popularProducts
+            popularProducts,
+            categoryData,
+            orderStatusData,
+            customerGrowthData
         })
 
     } catch (error) {

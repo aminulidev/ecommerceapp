@@ -1,5 +1,5 @@
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from "@tanstack/react-query"
 
 export interface Order {
     id: string
@@ -54,6 +54,20 @@ const fetchOrder = async (orderId: string) => {
         throw new Error("Failed to fetch order")
     }
     return response.json()
+}
+
+export function useInfiniteOrders(params: Omit<FetchOrdersParams, 'page'>) {
+    return useInfiniteQuery({
+        queryKey: ["orders", "infinite", params],
+        queryFn: ({ pageParam = 1 }) => fetchOrders({ ...params, page: (pageParam as number) }),
+        getNextPageParam: (lastPage) => {
+            if (lastPage.page < lastPage.totalPages) {
+                return lastPage.page + 1
+            }
+            return undefined
+        },
+        initialPageParam: 1,
+    })
 }
 
 export function useOrders(params: FetchOrdersParams) {

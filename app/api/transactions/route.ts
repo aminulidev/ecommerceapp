@@ -21,60 +21,31 @@ export async function GET(req: Request) {
         const where: any = {}
         if (search) {
             where.OR = [
-                { name: { contains: search } },
+                { invoiceNumber: { contains: search } },
                 { description: { contains: search } },
             ]
         }
 
-        const [categories, total] = await Promise.all([
-            prisma.category.findMany({
+        const [transactions, total] = await Promise.all([
+            prisma.transaction.findMany({
                 where,
                 skip,
                 take: limit,
                 orderBy: {
-                    name: 'asc'
+                    date: 'desc'
                 }
             }),
-            prisma.category.count({ where }),
+            prisma.transaction.count({ where }),
         ])
 
         return NextResponse.json({
-            categories,
+            transactions,
             total,
             page,
             totalPages: Math.ceil(total / limit),
         })
     } catch (error) {
-        console.error("[CATEGORIES_GET]", error)
-        return new NextResponse("Internal Error", { status: 500 })
-    }
-}
-
-export async function POST(req: Request) {
-    try {
-        const session = await getServerSession(authOptions)
-        if (!session) {
-            return new NextResponse("Unauthorized", { status: 401 })
-        }
-
-        const body = await req.json()
-        const { name, description, icon } = body
-
-        if (!name || !description) {
-            return new NextResponse("Name and description are required", { status: 400 })
-        }
-
-        const category = await prisma.category.create({
-            data: {
-                name,
-                description,
-                icon
-            }
-        })
-
-        return NextResponse.json(category)
-    } catch (error) {
-        console.error("[CATEGORIES_POST]", error)
+        console.error("[TRANSACTIONS_GET]", error)
         return new NextResponse("Internal Error", { status: 500 })
     }
 }
