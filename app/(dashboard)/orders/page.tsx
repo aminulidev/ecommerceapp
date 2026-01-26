@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -12,15 +13,25 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
-import { Search, RotateCcw } from "lucide-react"
+import { Search, RotateCcw, Trash2, CheckCircle2 } from "lucide-react"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { InfiniteScroll } from "@/components/shared/infinite-scroll"
+import { BulkActionBar } from "@/components/shared/bulk-action-bar"
+import { toast } from "sonner"
+import { ConfirmDialog } from "@/components/shared/confirm-dialog"
 
 export default function OrdersPage() {
     const [search, setSearch] = React.useState("")
     const [status, setStatus] = React.useState("ALL")
     const [debouncedSearch, setDebouncedSearch] = React.useState("")
+    const [selectedIds, setSelectedIds] = React.useState<string[]>([])
+    const [isConfirmOpen, setIsConfirmOpen] = React.useState(false)
+    const [confirmAction, setConfirmAction] = React.useState<{
+        title: string
+        description: string
+        onConfirm: () => void
+    } | null>(null)
 
     // Debounce search
     React.useEffect(() => {
@@ -43,9 +54,65 @@ export default function OrdersPage() {
     const handleReset = () => {
         setSearch("")
         setStatus("ALL")
+        setSelectedIds([])
     }
 
     const orders = data?.pages.flatMap((page) => page.orders) || []
+
+    const onSelect = (id: string) => {
+        setSelectedIds(prev =>
+            prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+        )
+    }
+
+    const onSelectAll = (checked: boolean) => {
+        if (checked) {
+            setSelectedIds(orders.map(o => o.id))
+        } else {
+            setSelectedIds([])
+        }
+    }
+
+    const handleBulkDelete = () => {
+        setConfirmAction({
+            title: `Delete ${selectedIds.length} orders?`,
+            description: "This action cannot be undone. All selected orders will be permanently removed.",
+            onConfirm: () => {
+                toast.success(`Successfully deleted ${selectedIds.length} orders`)
+                setSelectedIds([])
+                setIsConfirmOpen(false)
+            }
+        })
+        setIsConfirmOpen(true)
+    }
+
+    const handleBulkUpdate = () => {
+        setConfirmAction({
+            title: `Update status for ${selectedIds.length} orders?`,
+            description: "The status of all selected orders will be updated to the next stage.",
+            onConfirm: () => {
+                toast.success(`Successfully updated ${selectedIds.length} orders`)
+                setSelectedIds([])
+                setIsConfirmOpen(false)
+            }
+        })
+        setIsConfirmOpen(true)
+    }
+
+    const bulkActions = [
+        {
+            label: "Update Status",
+            icon: CheckCircle2,
+            onClick: handleBulkUpdate,
+            variant: "secondary" as const
+        },
+        {
+            label: "Delete",
+            icon: Trash2,
+            onClick: handleBulkDelete,
+            variant: "destructive" as const
+        }
+    ]
 
     return (
         <div className="space-y-6">
@@ -99,16 +166,41 @@ export default function OrdersPage() {
                     ))}
                 </div>
             ) : orders.length ? (
-                <InfiniteScroll
-                    fetchNextPage={fetchNextPage}
-                    hasNextPage={!!hasNextPage}
-                    isFetchingNextPage={isFetchingNextPage}
-                >
-                    <OrdersTable
-                        orders={orders}
-                        onStatusUpdate={(id, s) => updateStatus.mutate({ orderId: id, status: s })}
+                <div className="relative">
+                    <InfiniteScroll
+                        fetchNextPage={fetchNextPage}
+                        hasNextPage={!!hasNextPage}
+                        isFetchingNextPage={isFetchingNextPage}
+                    >
+                        <OrdersTable
+                            orders={orders}
+                            onStatusUpdate={(id, s) => {
+                                updateStatus.mutate(
+                                    { orderId: id, status: s },
+                                    { onSuccess: () => toast.success("Order status updated") }
+                                )
+                            }}
+                            selectedIds={selectedIds}
+                            onSelect={onSelect}
+                            onSelectAll={onSelectAll}
+                        />
+                    </InfiniteScroll>
+
+                    <BulkActionBar
+                        selectedCount={selectedIds.length}
+                        onClear={() => setSelectedIds([])}
+                        actions={bulkActions}
                     />
-                </InfiniteScroll>
+
+                    <ConfirmDialog
+                        isOpen={isConfirmOpen}
+                        onClose={() => setIsConfirmOpen(false)}
+                        onConfirm={confirmAction?.onConfirm || (() => { })}
+                        title={confirmAction?.title || ""}
+                        description={confirmAction?.description || ""}
+                        variant={confirmAction?.title.includes("Delete") ? "destructive" : "default"}
+                    />
+                </div>
             ) : (
                 <div className="flex h-[400px] flex-col items-center justify-center rounded-md border border-dashed bg-card text-center animate-in fade-in duration-500">
                     <div className="rounded-full bg-muted p-4">

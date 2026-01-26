@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -16,7 +17,8 @@ import {
     Package,
     AlertCircle,
     Search,
-    RotateCcw
+    RotateCcw,
+    Archive
 } from "lucide-react"
 import {
     DropdownMenu,
@@ -28,10 +30,22 @@ import {
 } from "@/components/ui/dropdown-menu"
 import Link from "next/link"
 import { InfiniteScroll } from "@/components/shared/infinite-scroll"
+import { Checkbox } from "@/components/ui/checkbox"
+import { BulkActionBar } from "@/components/shared/bulk-action-bar"
+import { toast } from "sonner"
+import { ConfirmDialog } from "@/components/shared/confirm-dialog"
+import { cn } from "@/lib/utils"
 
 export default function ProductsPage() {
     const [search, setSearch] = React.useState("")
     const [debouncedSearch, setDebouncedSearch] = React.useState("")
+    const [selectedIds, setSelectedIds] = React.useState<string[]>([])
+    const [isConfirmOpen, setIsConfirmOpen] = React.useState(false)
+    const [confirmAction, setConfirmAction] = React.useState<{
+        title: string
+        description: string
+        onConfirm: () => void
+    } | null>(null)
 
     React.useEffect(() => {
         const timer = setTimeout(() => {
@@ -50,9 +64,67 @@ export default function ProductsPage() {
 
     const handleReset = () => {
         setSearch("")
+        setSelectedIds([])
     }
 
     const products = data?.pages.flatMap((page) => page.products) || []
+
+    const onSelect = (id: string) => {
+        setSelectedIds(prev =>
+            prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+        )
+    }
+
+    const onSelectAll = (checked: boolean) => {
+        if (checked) {
+            setSelectedIds(products.map(p => p.id))
+        } else {
+            setSelectedIds([])
+        }
+    }
+
+    const handleBulkArchive = () => {
+        setConfirmAction({
+            title: `Archive ${selectedIds.length} products?`,
+            description: "Archived products will be hidden from the storefront but kept in your records.",
+            onConfirm: () => {
+                toast.success(`Successfully archived ${selectedIds.length} products`)
+                setSelectedIds([])
+                setIsConfirmOpen(false)
+            }
+        })
+        setIsConfirmOpen(true)
+    }
+
+    const handleBulkDelete = () => {
+        setConfirmAction({
+            title: `Delete ${selectedIds.length} products?`,
+            description: "This action is permanent and cannot be undone. All selected products will be removed.",
+            onConfirm: () => {
+                toast.success(`Successfully deleted ${selectedIds.length} products`)
+                setSelectedIds([])
+                setIsConfirmOpen(false)
+            }
+        })
+        setIsConfirmOpen(true)
+    }
+
+    const bulkActions = [
+        {
+            label: "Archive",
+            icon: Archive,
+            onClick: handleBulkArchive,
+            variant: "secondary" as const
+        },
+        {
+            label: "Delete",
+            icon: Trash2,
+            onClick: handleBulkDelete,
+            variant: "destructive" as const
+        }
+    ]
+
+    const isAllSelected = products.length > 0 && selectedIds.length === products.length
 
     return (
         <div className="space-y-6">
@@ -106,122 +178,130 @@ export default function ProductsPage() {
                             ))}
                         </div>
                     ) : (
-                        <InfiniteScroll
-                            fetchNextPage={fetchNextPage}
-                            hasNextPage={!!hasNextPage}
-                            isFetchingNextPage={isFetchingNextPage}
-                        >
-                            <div className="relative w-full overflow-auto">
-                                <table className="w-full caption-bottom text-sm">
-                                    <thead className="[&_tr]:border-b">
-                                        <tr className="border-b transition-colors hover:bg-muted/50">
-                                            <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Product</th>
-                                            <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">SKU</th>
-                                            <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Category</th>
-                                            <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Price</th>
-                                            <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Stock</th>
-                                            <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="[&_tr:last-child]:border-0">
-                                        {products.map((product: any) => (
-                                            <tr key={product.id} className="border-b transition-colors hover:bg-muted/50">
-                                                <td className="p-4 align-middle">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="relative h-10 w-10 overflow-hidden rounded-md border bg-muted">
-                                                            {product.image ? (
-                                                                /* eslint-disable-next-line @next/next/no-img-element */
-                                                                <img
-                                                                    src={product.image}
-                                                                    alt={product.name}
-                                                                    className="h-full w-full object-cover"
-                                                                />
-                                                            ) : (
-                                                                <Package className="h-6 w-6 m-auto mt-2 text-muted-foreground" />
-                                                            )}
-                                                        </div>
-                                                        <span className="font-medium">{product.name}</span>
-                                                    </div>
-                                                </td>
-                                                <td className="p-4 align-middle font-mono text-xs text-muted-foreground">
-                                                    {product.sku}
-                                                </td>
-                                                <td className="p-4 align-middle">
-                                                    <Badge variant="secondary">
-                                                        {product.category?.name}
-                                                    </Badge>
-                                                </td>
-                                                <td className="p-4 align-middle font-medium">
-                                                    ${product.price.toFixed(2)}
-                                                </td>
-                                                <td className="p-4 align-middle">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className={product.stock <= 5 ? "text-destructive font-bold" : ""}>
-                                                            {product.stock}
-                                                        </span>
-                                                        {product.stock <= 5 && (
-                                                            <AlertCircle className="h-4 w-4 text-destructive" />
-                                                        )}
-                                                    </div>
-                                                </td>
-                                                <td className="p-4 align-middle text-right">
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild>
-                                                            <Button variant="ghost" size="icon">
-                                                                <MoreHorizontal className="h-4 w-4" />
-                                                            </Button>
-                                                        </DropdownMenuTrigger>
-                                                        <DropdownMenuContent align="end">
-                                                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                            <DropdownMenuItem asChild>
-                                                                <Link href={`/products/${product.id}`} className="flex items-center gap-2">
-                                                                    <Pencil className="h-4 w-4" /> Edit Product
-                                                                </Link>
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuItem className="flex items-center gap-2">
-                                                                <ExternalLink className="h-4 w-4" /> View Store
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuSeparator />
-                                                            <DropdownMenuItem className="flex items-center gap-2 text-destructive">
-                                                                <Trash2 className="h-4 w-4" /> Delete Product
-                                                            </DropdownMenuItem>
-                                                        </DropdownMenuContent>
-                                                    </DropdownMenu>
-                                                </td>
+                        <div className="relative">
+                            <InfiniteScroll
+                                fetchNextPage={fetchNextPage}
+                                hasNextPage={!!hasNextPage}
+                                isFetchingNextPage={isFetchingNextPage}
+                            >
+                                <div className="relative w-full overflow-auto">
+                                    <table className="w-full caption-bottom text-sm">
+                                        <thead className="[&_tr]:border-b">
+                                            <tr className="border-b transition-colors hover:bg-muted/50">
+                                                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground w-[40px]">
+                                                    <Checkbox
+                                                        checked={isAllSelected}
+                                                        onChange={(e) => onSelectAll(e.target.checked)}
+                                                    />
+                                                </th>
+                                                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Product</th>
+                                                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">SKU</th>
+                                                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Category</th>
+                                                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Price</th>
+                                                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Stock</th>
+                                                <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground">Actions</th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </InfiniteScroll>
-                    )}
-                </CardContent>
-            </Card>
-        </div>
-    )
-}
+                                        </thead>
+                                        <tbody className="[&_tr:last-child]:border-0">
+                                            {products.map((product: any) => {
+                                                const isSelected = selectedIds.includes(product.id)
+                                                return (
+                                                    <tr key={product.id} className={cn(
+                                                        "border-b transition-colors hover:bg-muted/50",
+                                                        isSelected && "bg-muted/50"
+                                                    )}>
+                                                        <td className="p-4 align-middle">
+                                                            <Checkbox
+                                                                checked={isSelected}
+                                                                onChange={() => onSelect(product.id)}
+                                                            />
+                                                        </td>
+                                                        <td className="p-4 align-middle">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="relative h-10 w-10 overflow-hidden rounded-md border bg-muted">
+                                                                    {product.image ? (
+                                                                        /* eslint-disable-next-line @next/next/no-img-element */
+                                                                        <img
+                                                                            src={product.image}
+                                                                            alt={product.name}
+                                                                            className="h-full w-full object-cover"
+                                                                        />
+                                                                    ) : (
+                                                                        <Package className="h-6 w-6 m-auto mt-2 text-muted-foreground" />
+                                                                    )}
+                                                                </div>
+                                                                <span className="font-medium">{product.name}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="p-4 align-middle font-mono text-xs text-muted-foreground">
+                                                            {product.sku}
+                                                        </td>
+                                                        <td className="p-4 align-middle">
+                                                            <Badge variant="secondary">
+                                                                {product.category?.name}
+                                                            </Badge>
+                                                        </td>
+                                                        <td className="p-4 align-middle font-medium">
+                                                            ${product.price.toFixed(2)}
+                                                        </td>
+                                                        <td className="p-4 align-middle">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className={product.stock <= 5 ? "text-destructive font-bold" : ""}>
+                                                                    {product.stock}
+                                                                </span>
+                                                                {product.stock <= 5 && (
+                                                                    <AlertCircle className="h-4 w-4 text-destructive" />
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                        <td className="p-4 align-middle text-right">
+                                                            <DropdownMenu>
+                                                                <DropdownMenuTrigger asChild>
+                                                                    <Button variant="ghost" size="icon">
+                                                                        <MoreHorizontal className="h-4 w-4" />
+                                                                    </Button>
+                                                                </DropdownMenuTrigger>
+                                                                <DropdownMenuContent align="end">
+                                                                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                                                    <DropdownMenuItem asChild>
+                                                                        <Link href={`/products/${product.id}`} className="flex items-center gap-2">
+                                                                            <Pencil className="h-4 w-4" /> Edit Product
+                                                                        </Link>
+                                                                    </DropdownMenuItem>
+                                                                    <DropdownMenuItem className="flex items-center gap-2">
+                                                                        <ExternalLink className="h-4 w-4" /> View Store
+                                                                    </DropdownMenuItem>
+                                                                    <DropdownMenuSeparator />
+                                                                    <DropdownMenuItem className="flex items-center gap-2 text-destructive">
+                                                                        <Trash2 className="h-4 w-4" /> Delete Product
+                                                                    </DropdownMenuItem>
+                                                                </DropdownMenuContent>
+                                                            </DropdownMenu>
+                                                        </td>
+                                                    </tr>
+                                                )
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </InfiniteScroll>
 
-function ProductsSkeleton() {
-    return (
-        <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div className="space-y-2">
-                    <Skeleton className="h-8 w-[150px]" />
-                    <Skeleton className="h-4 w-[250px]" />
-                </div>
-                <Skeleton className="h-10 w-[120px]" />
-            </div>
-            <Card>
-                <CardHeader>
-                    <Skeleton className="h-6 w-[100px]" />
-                    <Skeleton className="h-4 w-[200px]" />
-                </CardHeader>
-                <CardContent>
-                    <div className="space-y-4">
-                        {[...Array(5)].map((_, i) => (
-                            <Skeleton key={i} className="h-12 w-full" />
-                        ))}
-                    </div>
+                            <BulkActionBar
+                                selectedCount={selectedIds.length}
+                                onClear={() => setSelectedIds([])}
+                                actions={bulkActions}
+                            />
+
+                            <ConfirmDialog
+                                isOpen={isConfirmOpen}
+                                onClose={() => setIsConfirmOpen(false)}
+                                onConfirm={confirmAction?.onConfirm || (() => { })}
+                                title={confirmAction?.title || ""}
+                                description={confirmAction?.description || ""}
+                                variant={confirmAction?.title.includes("Delete") ? "destructive" : "default"}
+                            />
+                        </div>
+                    )}
                 </CardContent>
             </Card>
         </div>

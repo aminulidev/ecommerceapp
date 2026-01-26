@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -13,10 +14,10 @@ import {
     Pencil,
     Trash2,
     LayoutGrid,
-    MessageSquare,
     DollarSign,
     Search,
-    RotateCcw
+    RotateCcw,
+    Archive
 } from "lucide-react"
 import {
     DropdownMenu,
@@ -30,10 +31,22 @@ import { useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { CategoryDialog } from "@/components/dashboard/category-dialog"
 import { InfiniteScroll } from "@/components/shared/infinite-scroll"
+import { Checkbox } from "@/components/ui/checkbox"
+import { BulkActionBar } from "@/components/shared/bulk-action-bar"
+import { toast } from "sonner"
+import { ConfirmDialog } from "@/components/shared/confirm-dialog"
+import { cn } from "@/lib/utils"
 
 export default function CategoriesPage() {
     const [search, setSearch] = React.useState("")
     const [debouncedSearch, setDebouncedSearch] = React.useState("")
+    const [selectedIds, setSelectedIds] = React.useState<string[]>([])
+    const [isConfirmOpen, setIsConfirmOpen] = React.useState(false)
+    const [confirmAction, setConfirmAction] = React.useState<{
+        title: string
+        description: string
+        onConfirm: () => void
+    } | null>(null)
     const queryClient = useQueryClient()
     const [loading, setLoading] = useState(false)
 
@@ -54,23 +67,105 @@ export default function CategoriesPage() {
 
     const handleReset = () => {
         setSearch("")
+        setSelectedIds([])
     }
 
     const categories = data?.pages.flatMap((page) => page.categories) || []
 
-    const onDelete = async (id: string) => {
-        if (!window.confirm("Are you sure? This might affect products in this category.")) return
-        setLoading(true)
-        try {
-            const response = await fetch(`/api/categories/${id}`, { method: "DELETE" })
-            if (response.ok) {
-                queryClient.invalidateQueries({ queryKey: ["categories"] })
-            }
-        } catch (error) {
-            console.error(error)
-        } finally {
-            setLoading(false)
+    const onSelect = (id: string) => {
+        setSelectedIds(prev =>
+            prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+        )
+    }
+
+    const onSelectAll = (checked: boolean) => {
+        if (checked) {
+            setSelectedIds(categories.map(c => c.id))
+        } else {
+            setSelectedIds([])
         }
+    }
+
+    const handleBulkArchive = () => {
+        toast.info(`Archiving ${selectedIds.length} categories...`)
+        setSelectedIds([])
+    }
+
+    const handleBulkDelete = () => {
+        setConfirmAction({
+            title: `Delete ${selectedIds.length} categories?`,
+            description: "This will remove categories and may affect associated products. This action cannot be undone.",
+            onConfirm: () => {
+                toast.success(`Successfully deleted ${selectedIds.length} categories`)
+                setSelectedIds([])
+                setIsConfirmOpen(false)
+            }
+        })
+        setIsConfirmOpen(true)
+    }
+
+    const bulkActions = [
+        {
+            label: "Archive",
+            icon: Archive,
+            onClick: handleBulkArchive,
+            variant: "secondary" as const
+        },
+        {
+            label: "Delete",
+            icon: Trash2,
+            onClick: handleBulkDelete,
+            variant: "destructive" as const
+        }
+    ]
+
+    const onDelete = async (id: string) => {
+        setConfirmAction({
+            title: "Delete category?",
+            description: "This might affect products in this category. Are you sure?",
+            onConfirm: async () => {
+                setLoading(true)
+                try {
+                    const response = await fetch(`/api/categories/${id}`, { method: "DELETE" })
+                    if (response.ok) {
+                        queryClient.invalidateQueries({ queryKey: ["categories"] })
+                        toast.success("Category deleted successfully")
+                    } else {
+                        toast.error("Failed to delete category")
+                    }
+                } catch (error) {
+                    console.error(error)
+                    toast.error("An error occurred")
+                } finally {
+                    setLoading(false)
+                    setIsConfirmOpen(false)
+                }
+            }
+        })
+        setIsConfirmOpen(true)
+    }
+
+    const isAllSelected = categories.length > 0 && selectedIds.length === categories.length
+
+    function CategoriesSkeleton() {
+        return (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {[...Array(6)].map((_, i) => (
+                    <Card key={i}>
+                        <CardHeader>
+                            <Skeleton className="h-6 w-3/4" />
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <Skeleton className="h-4 w-full" />
+                            <div className="grid grid-cols-2 gap-4">
+                                <Skeleton className="h-12 w-full" />
+                                <Skeleton className="h-12 w-full" />
+                            </div>
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
+        )
     }
 
     return (
@@ -82,7 +177,17 @@ export default function CategoriesPage() {
                         Organize your products into categories
                     </p>
                 </div>
-                <CategoryDialog />
+                <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                        <Checkbox
+                            id="select-all"
+                            checked={isAllSelected}
+                            onChange={(e) => onSelectAll(e.target.checked)}
+                        />
+                        <label htmlFor="select-all" className="cursor-pointer">Select All</label>
+                    </div>
+                    <CategoryDialog />
+                </div>
             </div>
 
             <Card>
@@ -111,93 +216,95 @@ export default function CategoriesPage() {
             {isLoading ? (
                 <CategoriesSkeleton />
             ) : (
-                <InfiniteScroll
-                    fetchNextPage={fetchNextPage}
-                    hasNextPage={!!hasNextPage}
-                    isFetchingNextPage={isFetchingNextPage}
-                >
-                    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                        {categories.map((category: any) => (
-                            <Card key={category.id} className="overflow-hidden">
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                    <CardTitle className="text-xl font-bold">{category.name}</CardTitle>
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" size="icon">
-                                                <MoreHorizontal className="h-4 w-4" />
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                            <DropdownMenuItem className="gap-2">
-                                                <Pencil className="h-4 w-4" /> Edit
-                                            </DropdownMenuItem>
-                                            <DropdownMenuSeparator />
-                                            <DropdownMenuItem className="gap-2 text-destructive" onClick={() => onDelete(category.id)}>
-                                                <Trash2 className="h-4 w-4" /> Delete
-                                            </DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="flex flex-col gap-4">
-                                        <p className="text-sm text-muted-foreground line-clamp-2 min-h-[40px]">
-                                            {category.description}
-                                        </p>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div className="flex items-center gap-2 rounded-lg bg-muted p-2">
-                                                <LayoutGrid className="h-4 w-4 text-primary" />
-                                                <div className="flex flex-col">
-                                                    <span className="text-xs text-muted-foreground">Products</span>
-                                                    <span className="font-bold">{category.totalProducts || 0}</span>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-2 rounded-lg bg-muted p-2">
-                                                <DollarSign className="h-4 w-4 text-success" />
-                                                <div className="flex flex-col">
-                                                    <span className="text-xs text-muted-foreground">Earnings</span>
-                                                    <span className="font-bold">${category.totalEarning?.toLocaleString() || 0}</span>
-                                                </div>
-                                            </div>
+                <div className="relative">
+                    <InfiniteScroll
+                        fetchNextPage={fetchNextPage}
+                        hasNextPage={!!hasNextPage}
+                        isFetchingNextPage={isFetchingNextPage}
+                    >
+                        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                            {categories.map((category: any) => {
+                                const isSelected = selectedIds.includes(category.id)
+                                return (
+                                    <Card
+                                        key={category.id}
+                                        className={cn(
+                                            "overflow-hidden transition-all relative",
+                                            isSelected ? "border-primary ring-1 ring-primary" : "hover:border-primary/50"
+                                        )}
+                                        onClick={() => onSelect(category.id)}
+                                    >
+                                        <div className="absolute top-3 right-3 z-10" onClick={e => e.stopPropagation()}>
+                                            <Checkbox
+                                                checked={isSelected}
+                                                onChange={() => onSelect(category.id)}
+                                            />
                                         </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        ))}
-                    </div>
-                </InfiniteScroll>
-            )}
-        </div>
-    )
-}
+                                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 cursor-pointer">
+                                            <CardTitle className="text-xl font-bold">{category.name}</CardTitle>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}>
+                                                    <Button variant="ghost" size="icon">
+                                                        <MoreHorizontal className="h-4 w-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                                    <DropdownMenuItem className="gap-2">
+                                                        <Pencil className="h-4 w-4" /> Edit
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuItem className="gap-2 text-destructive" onClick={() => onDelete(category.id)}>
+                                                        <Trash2 className="h-4 w-4" /> Delete
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </CardHeader>
+                                        <CardContent className="cursor-pointer">
+                                            <div className="flex flex-col gap-4">
+                                                <p className="text-sm text-muted-foreground line-clamp-2 min-h-[40px]">
+                                                    {category.description}
+                                                </p>
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <div className="flex items-center gap-2 rounded-lg bg-muted p-2">
+                                                        <LayoutGrid className="h-4 w-4 text-primary" />
+                                                        <div className="flex flex-col">
+                                                            <span className="text-xs text-muted-foreground">Products</span>
+                                                            <span className="font-bold">{category.totalProducts || 0}</span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 rounded-lg bg-muted p-2">
+                                                        <DollarSign className="h-4 w-4 text-success" />
+                                                        <div className="flex flex-col">
+                                                            <span className="text-xs text-muted-foreground">Earnings</span>
+                                                            <span className="font-bold">${category.totalEarning?.toLocaleString() || 0}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                )
+                            })}
+                        </div>
+                    </InfiniteScroll>
 
-function CategoriesSkeleton() {
-    return (
-        <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div className="space-y-2">
-                    <Skeleton className="h-8 w-[150px]" />
-                    <Skeleton className="h-4 w-[250px]" />
+                    <BulkActionBar
+                        selectedCount={selectedIds.length}
+                        onClear={() => setSelectedIds([])}
+                        actions={bulkActions}
+                    />
+
+                    <ConfirmDialog
+                        isOpen={isConfirmOpen}
+                        onClose={() => setIsConfirmOpen(false)}
+                        onConfirm={confirmAction?.onConfirm || (() => { })}
+                        title={confirmAction?.title || ""}
+                        description={confirmAction?.description || ""}
+                        variant={confirmAction?.title.includes("Delete") ? "destructive" : "default"}
+                    />
                 </div>
-                <Skeleton className="h-10 w-[120px]" />
-            </div>
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {[...Array(6)].map((_, i) => (
-                    <Card key={i}>
-                        <CardHeader>
-                            <Skeleton className="h-6 w-3/4" />
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <Skeleton className="h-4 w-full" />
-                            <Skeleton className="h-4 w-full" />
-                            <div className="grid grid-cols-2 gap-4">
-                                <Skeleton className="h-12 w-full" />
-                                <Skeleton className="h-12 w-full" />
-                            </div>
-                        </CardContent>
-                    </Card>
-                ))}
-            </div>
+            )}
         </div>
     )
 }

@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -24,10 +25,14 @@ import { Order } from "@/hooks/use-orders"
 import { format } from "date-fns"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
+import { Checkbox } from "@/components/ui/checkbox"
 
 interface OrdersTableProps {
     orders: Order[]
     onStatusUpdate: (orderId: string, status: string) => void
+    selectedIds: string[]
+    onSelect: (id: string) => void
+    onSelectAll: (checked: boolean) => void
 }
 
 const statusConfig: Record<string, { label: string; icon: any; color: string }> = {
@@ -38,12 +43,26 @@ const statusConfig: Record<string, { label: string; icon: any; color: string }> 
     OUT_FOR_DELIVERY: { label: "Out for Delivery", icon: Truck, color: "bg-purple-500/10 text-purple-500 border-purple-500/20" },
 }
 
-export function OrdersTable({ orders, onStatusUpdate }: OrdersTableProps) {
+export function OrdersTable({
+    orders,
+    onStatusUpdate,
+    selectedIds = [],
+    onSelect,
+    onSelectAll
+}: OrdersTableProps) {
+    const isAllSelected = orders.length > 0 && selectedIds.length === orders.length
+
     return (
-        <div className="rounded-md border bg-card">
+        <div className="rounded-md border bg-card overflow-hidden">
             <Table>
                 <TableHeader>
                     <TableRow className="hover:bg-transparent">
+                        <TableHead className="w-[40px] px-4">
+                            <Checkbox
+                                checked={isAllSelected}
+                                onChange={(e) => onSelectAll(e.target.checked)}
+                            />
+                        </TableHead>
                         <TableHead className="w-[100px]">Order</TableHead>
                         <TableHead>Customer</TableHead>
                         <TableHead>Status</TableHead>
@@ -56,8 +75,21 @@ export function OrdersTable({ orders, onStatusUpdate }: OrdersTableProps) {
                 <TableBody>
                     {orders.map((order) => {
                         const status = statusConfig[order.status] || { label: order.status, icon: Clock, color: "" }
+                        const isSelected = selectedIds.includes(order.id)
                         return (
-                            <TableRow key={order.id} className="group transition-colors">
+                            <TableRow
+                                key={order.id}
+                                className={cn(
+                                    "group transition-colors",
+                                    isSelected && "bg-muted/50"
+                                )}
+                            >
+                                <TableCell className="px-4">
+                                    <Checkbox
+                                        checked={isSelected}
+                                        onChange={() => onSelect(order.id)}
+                                    />
+                                </TableCell>
                                 <TableCell className="font-medium">
                                     <Link href={`/orders/${order.id}`} className="hover:text-primary transition-colors">
                                         {order.orderNumber}

@@ -11,6 +11,8 @@ export const metadata: Metadata = {
   description: 'Admin dashboard for ecommerce management',
 }
 
+import { Toaster } from "sonner"
+
 export default function RootLayout({
   children,
 }: {
@@ -25,7 +27,10 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <Providers>{children}</Providers>
+          <Providers>
+            {children}
+            <Toaster position="top-center" richColors />
+          </Providers>
         </ThemeProvider>
       </body>
     </html>

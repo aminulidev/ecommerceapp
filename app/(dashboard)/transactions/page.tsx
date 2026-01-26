@@ -13,10 +13,10 @@ import {
     Search,
     RotateCcw,
     CreditCard,
-    ArrowUpRight,
-    ArrowDownLeft,
     Wallet,
-    Landmark
+    Landmark,
+    Trash2,
+    Download
 } from "lucide-react"
 import {
     DropdownMenu,
@@ -28,6 +28,10 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { format } from "date-fns"
 import { InfiniteScroll } from "@/components/shared/infinite-scroll"
+import { Checkbox } from "@/components/ui/checkbox"
+import { BulkActionBar } from "@/components/shared/bulk-action-bar"
+import { toast } from "sonner"
+import { ConfirmDialog } from "@/components/shared/confirm-dialog"
 import { cn } from "@/lib/utils"
 
 const typeConfig: Record<string, { label: string; icon: any; color: string }> = {
@@ -40,6 +44,13 @@ const typeConfig: Record<string, { label: string; icon: any; color: string }> = 
 export default function TransactionsPage() {
     const [search, setSearch] = React.useState("")
     const [debouncedSearch, setDebouncedSearch] = React.useState("")
+    const [selectedIds, setSelectedIds] = React.useState<string[]>([])
+    const [isConfirmOpen, setIsConfirmOpen] = React.useState(false)
+    const [confirmAction, setConfirmAction] = React.useState<{
+        title: string
+        description: string
+        onConfirm: () => void
+    } | null>(null)
 
     React.useEffect(() => {
         const timer = setTimeout(() => {
@@ -58,9 +69,61 @@ export default function TransactionsPage() {
 
     const handleReset = () => {
         setSearch("")
+        setSelectedIds([])
     }
 
     const transactions = data?.pages.flatMap((page) => page.transactions) || []
+
+    const onSelect = (id: string) => {
+        setSelectedIds(prev =>
+            prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+        )
+    }
+
+    const onSelectAll = (checked: boolean) => {
+        if (checked) {
+            setSelectedIds(transactions.map(t => t.id))
+        } else {
+            setSelectedIds([])
+        }
+    }
+
+    const handleBulkExport = () => {
+        toast.info(`Exporting ${selectedIds.length} transactions...`, {
+            description: "Your download will begin shortly."
+        })
+        setSelectedIds([])
+    }
+
+    const handleBulkDelete = () => {
+        setConfirmAction({
+            title: `Delete ${selectedIds.length} transactions?`,
+            description: "This action cannot be undone. These records will be permanently removed.",
+            onConfirm: () => {
+                toast.success(`Successfully deleted ${selectedIds.length} transactions`)
+                setSelectedIds([])
+                setIsConfirmOpen(false)
+            }
+        })
+        setIsConfirmOpen(true)
+    }
+
+    const bulkActions = [
+        {
+            label: "Export",
+            icon: Download,
+            onClick: handleBulkExport,
+            variant: "secondary" as const
+        },
+        {
+            label: "Delete",
+            icon: Trash2,
+            onClick: handleBulkDelete,
+            variant: "destructive" as const
+        }
+    ]
+
+    const isAllSelected = transactions.length > 0 && selectedIds.length === transactions.length
 
     return (
         <div className="space-y-6">
@@ -109,69 +172,102 @@ export default function TransactionsPage() {
                             ))}
                         </div>
                     ) : (
-                        <InfiniteScroll
-                            fetchNextPage={fetchNextPage}
-                            hasNextPage={!!hasNextPage}
-                            isFetchingNextPage={isFetchingNextPage}
-                        >
-                            <div className="relative w-full overflow-auto">
-                                <table className="w-full caption-bottom text-sm">
-                                    <thead className="[&_tr]:border-b">
-                                        <tr className="border-b transition-colors hover:bg-muted/50">
-                                            <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Invoice</th>
-                                            <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Type</th>
-                                            <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Description</th>
-                                            <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Amount</th>
-                                            <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Status</th>
-                                            <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Date</th>
-                                            <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="[&_tr:last-child]:border-0">
-                                        {transactions.map((tx: any) => {
-                                            const config = typeConfig[tx.type] || { label: tx.type, icon: CreditCard, color: "" }
-                                            return (
-                                                <tr key={tx.id} className="border-b transition-colors hover:bg-muted/50">
-                                                    <td className="p-4 align-middle font-medium">{tx.invoiceNumber}</td>
-                                                    <td className="p-4 align-middle">
-                                                        <div className="flex items-center gap-2">
-                                                            <config.icon className={cn("h-4 w-4", config.color)} />
-                                                            <span>{config.label}</span>
-                                                        </div>
-                                                    </td>
-                                                    <td className="p-4 align-middle text-muted-foreground">{tx.description}</td>
-                                                    <td className="p-4 align-middle font-bold text-success">
-                                                        +${tx.amount.toLocaleString()}
-                                                    </td>
-                                                    <td className="p-4 align-middle">
-                                                        <Badge variant={tx.status === "COMPLETED" ? "default" : tx.status === "PENDING" ? "secondary" : "destructive"}>
-                                                            {tx.status}
-                                                        </Badge>
-                                                    </td>
-                                                    <td className="p-4 align-middle text-muted-foreground">
-                                                        {format(new Date(tx.date), "MMM dd, yyyy")}
-                                                    </td>
-                                                    <td className="p-4 align-middle text-right">
-                                                        <DropdownMenu>
-                                                            <DropdownMenuTrigger asChild>
-                                                                <Button variant="ghost" size="icon">
-                                                                    <MoreHorizontal className="h-4 w-4" />
-                                                                </Button>
-                                                            </DropdownMenuTrigger>
-                                                            <DropdownMenuContent align="end">
-                                                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                                <DropdownMenuItem>View Receipt</DropdownMenuItem>
-                                                                <DropdownMenuItem>Refund</DropdownMenuItem>
-                                                            </DropdownMenuContent>
-                                                        </DropdownMenu>
-                                                    </td>
-                                                </tr>
-                                            )
-                                        })}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </InfiniteScroll>
+                        <div className="relative">
+                            <InfiniteScroll
+                                fetchNextPage={fetchNextPage}
+                                hasNextPage={!!hasNextPage}
+                                isFetchingNextPage={isFetchingNextPage}
+                            >
+                                <div className="relative w-full overflow-auto">
+                                    <table className="w-full caption-bottom text-sm">
+                                        <thead className="[&_tr]:border-b">
+                                            <tr className="border-b transition-colors hover:bg-muted/50">
+                                                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground w-[40px]">
+                                                    <Checkbox
+                                                        checked={isAllSelected}
+                                                        onChange={(e) => onSelectAll(e.target.checked)}
+                                                    />
+                                                </th>
+                                                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Invoice</th>
+                                                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Type</th>
+                                                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Description</th>
+                                                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Amount</th>
+                                                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Status</th>
+                                                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Date</th>
+                                                <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="[&_tr:last-child]:border-0">
+                                            {transactions.map((tx: any) => {
+                                                const config = typeConfig[tx.type] || { label: tx.type, icon: CreditCard, color: "" }
+                                                const isSelected = selectedIds.includes(tx.id)
+                                                return (
+                                                    <tr key={tx.id} className={cn(
+                                                        "border-b transition-colors hover:bg-muted/50",
+                                                        isSelected && "bg-muted/50"
+                                                    )}>
+                                                        <td className="p-4 align-middle">
+                                                            <Checkbox
+                                                                checked={isSelected}
+                                                                onChange={() => onSelect(tx.id)}
+                                                            />
+                                                        </td>
+                                                        <td className="p-4 align-middle font-medium">{tx.invoiceNumber}</td>
+                                                        <td className="p-4 align-middle">
+                                                            <div className="flex items-center gap-2">
+                                                                <config.icon className={cn("h-4 w-4", config.color)} />
+                                                                <span>{config.label}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="p-4 align-middle text-muted-foreground">{tx.description}</td>
+                                                        <td className="p-4 align-middle font-bold text-success">
+                                                            +${tx.amount.toLocaleString()}
+                                                        </td>
+                                                        <td className="p-4 align-middle">
+                                                            <Badge variant={tx.status === "COMPLETED" ? "default" : tx.status === "PENDING" ? "secondary" : "destructive"}>
+                                                                {tx.status}
+                                                            </Badge>
+                                                        </td>
+                                                        <td className="p-4 align-middle text-muted-foreground">
+                                                            {format(new Date(tx.date), "MMM dd, yyyy")}
+                                                        </td>
+                                                        <td className="p-4 align-middle text-right">
+                                                            <DropdownMenu>
+                                                                <DropdownMenuTrigger asChild>
+                                                                    <Button variant="ghost" size="icon">
+                                                                        <MoreHorizontal className="h-4 w-4" />
+                                                                    </Button>
+                                                                </DropdownMenuTrigger>
+                                                                <DropdownMenuContent align="end">
+                                                                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                                                    <DropdownMenuItem>View Receipt</DropdownMenuItem>
+                                                                    <DropdownMenuItem>Refund</DropdownMenuItem>
+                                                                </DropdownMenuContent>
+                                                            </DropdownMenu>
+                                                        </td>
+                                                    </tr>
+                                                )
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </InfiniteScroll>
+
+                            <BulkActionBar
+                                selectedCount={selectedIds.length}
+                                onClear={() => setSelectedIds([])}
+                                actions={bulkActions}
+                            />
+
+                            <ConfirmDialog
+                                isOpen={isConfirmOpen}
+                                onClose={() => setIsConfirmOpen(false)}
+                                onConfirm={confirmAction?.onConfirm || (() => { })}
+                                title={confirmAction?.title || ""}
+                                description={confirmAction?.description || ""}
+                                variant={confirmAction?.title.includes("Delete") ? "destructive" : "default"}
+                            />
+                        </div>
                     )}
                 </CardContent>
             </Card>
