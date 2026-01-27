@@ -105,3 +105,41 @@ export function useUpdateOrderStatus() {
         },
     })
 }
+
+export function useBulkUpdateOrdersStatus() {
+    const queryClient = useQueryClient()
+    return useMutation({
+        mutationFn: async ({ ids, status }: { ids: string[]; status: string }) => {
+            const response = await fetch("/api/orders", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ids, status }),
+            })
+            if (!response.ok) {
+                throw new Error("Failed to update orders status")
+            }
+            return response.json()
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["orders"] })
+        },
+    })
+}
+
+export function useBulkDeleteOrders() {
+    const queryClient = useQueryClient()
+    return useMutation({
+        mutationFn: async (ids: string[]) => {
+            const response = await fetch(`/api/orders?ids=${ids.join(",")}`, {
+                method: "DELETE",
+            })
+            if (!response.ok) {
+                throw new Error("Failed to delete orders")
+            }
+            return response.json()
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["orders"] })
+        },
+    })
+}

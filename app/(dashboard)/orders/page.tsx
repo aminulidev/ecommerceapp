@@ -2,7 +2,7 @@
 "use client"
 
 import * as React from "react"
-import { useInfiniteOrders, useUpdateOrderStatus } from "@/hooks/use-orders"
+import { useInfiniteOrders, useUpdateOrderStatus, useBulkUpdateOrdersStatus, useBulkDeleteOrders } from "@/hooks/use-orders"
 import { OrdersTable } from "@/components/orders/orders-table"
 import { Input } from "@/components/ui/input"
 import {
@@ -50,6 +50,8 @@ export default function OrdersPage() {
     } = useInfiniteOrders({ search: debouncedSearch, status })
 
     const updateStatus = useUpdateOrderStatus()
+    const bulkUpdateStatus = useBulkUpdateOrdersStatus()
+    const bulkDelete = useBulkDeleteOrders()
 
     const handleReset = () => {
         setSearch("")
@@ -78,22 +80,42 @@ export default function OrdersPage() {
             title: `Delete ${selectedIds.length} orders?`,
             description: "This action cannot be undone. All selected orders will be permanently removed.",
             onConfirm: () => {
-                toast.success(`Successfully deleted ${selectedIds.length} orders`)
-                setSelectedIds([])
-                setIsConfirmOpen(false)
+                bulkDelete.mutate(selectedIds, {
+                    onSuccess: () => {
+                        toast.success(`Successfully deleted ${selectedIds.length} orders`)
+                        setSelectedIds([])
+                        setIsConfirmOpen(false)
+                    },
+                    onError: () => {
+                        toast.error("Failed to delete orders")
+                    }
+                })
             }
         })
         setIsConfirmOpen(true)
     }
 
     const handleBulkUpdate = () => {
+        // Since we don't have a status picker yet, we'll update to 'READY_TO_PICKUP' as a default "next" status
+        // Or we could implement a logic to advance status, but for now let's just make it work with a fixed status
+        // or ask the user. Given the prompt "update status and delete action", I'll set it to a reasonable next state.
         setConfirmAction({
             title: `Update status for ${selectedIds.length} orders?`,
-            description: "The status of all selected orders will be updated to the next stage.",
+            description: "The status of all selected orders will be updated to 'Ready to Pickup'.",
             onConfirm: () => {
-                toast.success(`Successfully updated ${selectedIds.length} orders`)
-                setSelectedIds([])
-                setIsConfirmOpen(false)
+                bulkUpdateStatus.mutate(
+                    { ids: selectedIds, status: "READY_TO_PICKUP" },
+                    {
+                        onSuccess: () => {
+                            toast.success(`Successfully updated ${selectedIds.length} orders`)
+                            setSelectedIds([])
+                            setIsConfirmOpen(false)
+                        },
+                        onError: () => {
+                            toast.error("Failed to update orders")
+                        }
+                    }
+                )
             }
         })
         setIsConfirmOpen(true)
@@ -198,7 +220,8 @@ export default function OrdersPage() {
                         onConfirm={confirmAction?.onConfirm || (() => { })}
                         title={confirmAction?.title || ""}
                         description={confirmAction?.description || ""}
-                        variant={confirmAction?.title.includes("Delete") ? "destructive" : "default"}
+                        variant={confirmAction?.title?.includes("Delete") ? "destructive" : "default"}
+                        isLoading={bulkUpdateStatus.isPending || bulkDelete.isPending}
                     />
                 </div>
             ) : (

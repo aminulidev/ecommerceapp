@@ -70,9 +70,10 @@ interface DistributionChartProps {
     }[]
     title: string
     description: string
+    legend?: boolean
 }
 
-export function DistributionChart({ data, title, description }: DistributionChartProps) {
+export function DistributionChart({ data, title, description, legend = true }: DistributionChartProps) {
     return (
         <Card className="col-span-3">
             <CardHeader>
@@ -104,7 +105,7 @@ export function DistributionChart({ data, title, description }: DistributionChar
                                     fontSize: '12px'
                                 }}
                             />
-                            <Legend verticalAlign="bottom" height={36} />
+                            {legend && <Legend verticalAlign="bottom" height={36} />}
                         </PieChart>
                     </ResponsiveContainer>
                 </div>

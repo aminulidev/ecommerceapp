@@ -92,6 +92,7 @@ export default function DashboardPage() {
                             data={data.categoryData}
                             title="Categories"
                             description="Product distribution by category"
+                            legend={false}
                         />
                     </WidgetErrorBoundary>
                 </div>

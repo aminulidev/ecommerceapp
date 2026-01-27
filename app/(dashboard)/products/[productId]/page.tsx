@@ -28,7 +28,7 @@ export default function ProductFormPage() {
     const isNew = productId === "new"
 
     const { data: product, isLoading: isLoadingProduct } = useProduct(productId)
-    const { data: categories } = useCategories()
+    const { data: categoriesData } = useCategories()
 
     const [loading, setLoading] = useState(false)
     const [formData, setFormData] = useState({
@@ -209,7 +209,7 @@ export default function ProductFormPage() {
                                         required
                                     >
                                         <option value="">Select Category</option>
-                                        {categories?.map((cat: any) => (
+                                        {categoriesData?.categories?.map((cat: any) => (
                                             <option key={cat.id} value={cat.id}>{cat.name}</option>
                                         ))}
                                     </select>

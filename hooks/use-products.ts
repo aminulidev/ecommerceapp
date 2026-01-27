@@ -29,13 +29,15 @@ interface FetchProductsParams {
     page?: number
     limit?: number
     search?: string
+    isArchived?: boolean
 }
 
-const fetchProducts = async ({ page = 1, limit = 10, search = "" }: FetchProductsParams): Promise<ProductsResponse> => {
+const fetchProducts = async ({ page = 1, limit = 10, search = "", isArchived = false }: FetchProductsParams): Promise<ProductsResponse> => {
     const params = new URLSearchParams({
         page: page.toString(),
         limit: limit.toString(),
         search,
+        isArchived: isArchived.toString()
     })
     const response = await fetch(`/api/products?${params.toString()}`)
     if (!response.ok) {
@@ -77,5 +79,46 @@ export function useProduct(productId: string) {
             return response.json()
         },
         enabled: !!productId && productId !== "new"
+    })
+}
+
+export function useUpdateProduct() {
+    const queryClient = useQueryClient()
+    return useMutation({
+        mutationFn: async ({ productId, ...data }: { productId: string } & Partial<Product>) => {
+            const response = await fetch(`/api/products/${productId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(data),
+            })
+            if (!response.ok) {
+                throw new Error("Failed to update product")
+            }
+            return response.json()
+        },
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: ["products"] })
+            queryClient.invalidateQueries({ queryKey: ["products", data.id] })
+        },
+    })
+}
+
+export function useBulkArchiveProducts() {
+    const queryClient = useQueryClient()
+    return useMutation({
+        mutationFn: async ({ ids, isArchived }: { ids: string[]; isArchived: boolean }) => {
+            const response = await fetch("/api/products", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ids, isArchived }),
+            })
+            if (!response.ok) {
+                throw new Error("Failed to archive products")
+            }
+            return response.json()
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["products"] })
+        },
     })
 }

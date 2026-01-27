@@ -15,10 +15,11 @@ export async function GET(req: Request) {
         const page = parseInt(searchParams.get("page") || "1")
         const limit = parseInt(searchParams.get("limit") || "10")
         const search = searchParams.get("search") || ""
+        const isArchived = searchParams.get("isArchived") === "true"
 
         const skip = (page - 1) * limit
 
-        const where: any = {}
+        const where: any = { isArchived }
         if (search) {
             where.OR = [
                 { name: { contains: search } },
@@ -50,6 +51,38 @@ export async function GET(req: Request) {
         })
     } catch (error) {
         console.error("[PRODUCTS_GET]", error)
+        return new NextResponse("Internal Error", { status: 500 })
+    }
+}
+
+export async function PATCH(req: Request) {
+    try {
+        const session = await getServerSession(authOptions)
+        if (!session) {
+            return new NextResponse("Unauthorized", { status: 401 })
+        }
+
+        const body = await req.json()
+        const { ids, isArchived } = body
+
+        if (!ids || !Array.isArray(ids) || ids.length === 0) {
+            return new NextResponse("IDs are required", { status: 400 })
+        }
+
+        await prisma.product.updateMany({
+            where: {
+                id: {
+                    in: ids
+                }
+            },
+            data: {
+                isArchived: !!isArchived
+            }
+        })
+
+        return NextResponse.json({ success: true })
+    } catch (error) {
+        console.error("[PRODUCTS_PATCH]", error)
         return new NextResponse("Internal Error", { status: 500 })
     }
 }

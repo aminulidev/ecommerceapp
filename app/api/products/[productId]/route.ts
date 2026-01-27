@@ -43,11 +43,7 @@ export async function PATCH(
         }
 
         const body = await req.json()
-        const { name, description, price, stock, sku, categoryId, image } = body
-
-        if (!name || !description || !price || !stock || !sku || !categoryId) {
-            return new NextResponse("Missing required fields", { status: 400 })
-        }
+        const { name, description, price, stock, sku, categoryId, image, isArchived } = body
 
         const product = await prisma.product.update({
             where: {
@@ -56,11 +52,12 @@ export async function PATCH(
             data: {
                 name,
                 description,
-                price: parseFloat(price),
-                stock: parseInt(stock),
+                price: price !== undefined ? parseFloat(price) : undefined,
+                stock: stock !== undefined ? parseInt(stock) : undefined,
                 sku,
                 categoryId,
-                image
+                image,
+                isArchived
             }
         })
 

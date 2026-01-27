@@ -16,7 +16,8 @@ import {
     Menu,
     LogOut,
     CreditCard,
-    Truck
+    Truck,
+    Archive
 } from "lucide-react"
 import { signOut } from "next-auth/react"
 import { useState } from "react"
@@ -46,7 +47,13 @@ export function Sidebar({ className }: SidebarProps) {
             label: "Products",
             icon: Package,
             href: "/products",
-            active: pathname.startsWith("/products"),
+            active: pathname === "/products",
+        },
+        {
+            label: "Archived",
+            icon: Archive,
+            href: "/products/archived",
+            active: pathname === "/products/archived",
         },
         {
             label: "Categories",

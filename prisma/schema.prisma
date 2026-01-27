@@ -66,6 +66,7 @@ model Product {
   price       Float
   stock       Int
   sku         String      @unique
+  isArchived  Boolean     @default(false)
   orderItems  OrderItem[]
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt

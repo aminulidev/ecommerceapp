@@ -60,7 +60,7 @@ export default function ProductsPage() {
         fetchNextPage,
         hasNextPage,
         isFetchingNextPage
-    } = useInfiniteProducts({ search: debouncedSearch, isArchived: false })
+    } = useInfiniteProducts({ search: debouncedSearch, isArchived: true })
 
     const updateProduct = useUpdateProduct()
     const bulkArchive = useBulkArchiveProducts()
@@ -86,14 +86,14 @@ export default function ProductsPage() {
         }
     }
 
-    const handleBulkArchive = () => {
+    const handleBulkUnarchive = () => {
         setConfirmAction({
-            title: `Archive ${selectedIds.length} products?`,
-            description: "Archived products will be hidden from the storefront but kept in your records.",
+            title: `Unarchive ${selectedIds.length} products?`,
+            description: "These products will be restored to your active catalog.",
             onConfirm: () => {
-                bulkArchive.mutate({ ids: selectedIds, isArchived: true }, {
+                bulkArchive.mutate({ ids: selectedIds, isArchived: false }, {
                     onSuccess: () => {
-                        toast.success(`Successfully archived ${selectedIds.length} products`)
+                        toast.success(`Successfully unarchived ${selectedIds.length} products`)
                         setSelectedIds([])
                         setIsConfirmOpen(false)
                     }
@@ -118,9 +118,9 @@ export default function ProductsPage() {
 
     const bulkActions = [
         {
-            label: "Archive",
-            icon: Archive,
-            onClick: handleBulkArchive,
+            label: "Unarchive",
+            icon: RotateCcw,
+            onClick: handleBulkUnarchive,
             variant: "secondary" as const
         },
         {
@@ -137,16 +137,11 @@ export default function ProductsPage() {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-3xl font-bold tracking-tight">Products</h2>
+                    <h2 className="text-3xl font-bold tracking-tight">Archived Products</h2>
                     <p className="text-muted-foreground">
-                        Manage your product catalog and inventory
+                        Manage products that have been removed from your active catalog
                     </p>
                 </div>
-                <Button asChild>
-                    <Link href="/products/new">
-                        <Plus className="mr-2 h-4 w-4" /> Add Product
-                    </Link>
-                </Button>
             </div>
 
             <Card>
@@ -278,12 +273,12 @@ export default function ProductsPage() {
                                                                     <DropdownMenuItem
                                                                         className="flex items-center gap-2"
                                                                         onClick={() => {
-                                                                            updateProduct.mutate({ productId: product.id, isArchived: true }, {
-                                                                                onSuccess: () => toast.success("Product archived")
+                                                                            updateProduct.mutate({ productId: product.id, isArchived: false }, {
+                                                                                onSuccess: () => toast.success("Product unarchived")
                                                                             })
                                                                         }}
                                                                     >
-                                                                        <Archive className="h-4 w-4" /> Archive Product
+                                                                        <RotateCcw className="h-4 w-4" /> Unarchive Product
                                                                     </DropdownMenuItem>
                                                                     <DropdownMenuSeparator />
                                                                     <DropdownMenuItem className="flex items-center gap-2 text-destructive">
