@@ -3,6 +3,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Package } from "lucide-react"
 
 interface Product {
     id: string
@@ -38,9 +39,7 @@ export function PopularProducts({ products }: PopularProductsProps) {
                                                 className="h-full w-full object-cover"
                                             />
                                         ) : (
-                                            <span className="font-bold text-muted-foreground">
-                                                {product.name.substring(0, 2).toUpperCase()}
-                                            </span>
+                                            <Package className="h-6 w-6 m-auto mt-2 text-muted-foreground" />
                                         )}
                                     </div>
                                     <div className="space-y-1">

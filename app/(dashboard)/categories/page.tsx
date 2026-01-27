@@ -2,7 +2,7 @@
 "use client"
 
 import * as React from "react"
-import { useInfiniteCategories } from "@/hooks/use-categories"
+import { useInfiniteCategories, useDeleteCategory, useBulkDeleteCategories } from "@/hooks/use-categories"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -28,7 +28,6 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useState } from "react"
-import { useQueryClient } from "@tanstack/react-query"
 import { CategoryDialog } from "@/components/dashboard/category-dialog"
 import { InfiniteScroll } from "@/components/shared/infinite-scroll"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -47,8 +46,6 @@ export default function CategoriesPage() {
         description: string
         onConfirm: () => void
     } | null>(null)
-    const queryClient = useQueryClient()
-    const [loading, setLoading] = useState(false)
 
     React.useEffect(() => {
         const timer = setTimeout(() => {
@@ -64,6 +61,9 @@ export default function CategoriesPage() {
         hasNextPage,
         isFetchingNextPage
     } = useInfiniteCategories({ search: debouncedSearch })
+
+    const deleteCategory = useDeleteCategory()
+    const bulkDelete = useBulkDeleteCategories()
 
     const handleReset = () => {
         setSearch("")
@@ -96,9 +96,16 @@ export default function CategoriesPage() {
             title: `Delete ${selectedIds.length} categories?`,
             description: "This will remove categories and may affect associated products. This action cannot be undone.",
             onConfirm: () => {
-                toast.success(`Successfully deleted ${selectedIds.length} categories`)
-                setSelectedIds([])
-                setIsConfirmOpen(false)
+                bulkDelete.mutate(selectedIds, {
+                    onSuccess: () => {
+                        toast.success(`Successfully deleted ${selectedIds.length} categories`)
+                        setSelectedIds([])
+                        setIsConfirmOpen(false)
+                    },
+                    onError: (error: any) => {
+                        toast.error(error.message || "Failed to delete categories")
+                    }
+                })
             }
         })
         setIsConfirmOpen(true)
@@ -119,27 +126,20 @@ export default function CategoriesPage() {
         }
     ]
 
-    const onDelete = async (id: string) => {
+    const onDelete = (id: string) => {
         setConfirmAction({
             title: "Delete category?",
             description: "This might affect products in this category. Are you sure?",
-            onConfirm: async () => {
-                setLoading(true)
-                try {
-                    const response = await fetch(`/api/categories/${id}`, { method: "DELETE" })
-                    if (response.ok) {
-                        queryClient.invalidateQueries({ queryKey: ["categories"] })
+            onConfirm: () => {
+                deleteCategory.mutate(id, {
+                    onSuccess: () => {
                         toast.success("Category deleted successfully")
-                    } else {
-                        toast.error("Failed to delete category")
+                        setIsConfirmOpen(false)
+                    },
+                    onError: (error: any) => {
+                        toast.error(error.message || "Failed to delete category")
                     }
-                } catch (error) {
-                    console.error(error)
-                    toast.error("An error occurred")
-                } finally {
-                    setLoading(false)
-                    setIsConfirmOpen(false)
-                }
+                })
             }
         })
         setIsConfirmOpen(true)
@@ -182,7 +182,7 @@ export default function CategoriesPage() {
                         <Checkbox
                             id="select-all"
                             checked={isAllSelected}
-                            onChange={(e) => onSelectAll(e.target.checked)}
+                            onCheckedChange={(checked) => onSelectAll(!!checked)}
                         />
                         <label htmlFor="select-all" className="cursor-pointer">Select All</label>
                     </div>
@@ -229,7 +229,7 @@ export default function CategoriesPage() {
                                     <Card
                                         key={category.id}
                                         className={cn(
-                                            "overflow-hidden transition-all relative",
+                                            "overflow-hidden transition-all relative group",
                                             isSelected ? "border-primary ring-1 ring-primary" : "hover:border-primary/50"
                                         )}
                                         onClick={() => onSelect(category.id)}
@@ -237,24 +237,32 @@ export default function CategoriesPage() {
                                         <div className="absolute top-3 right-3 z-10" onClick={e => e.stopPropagation()}>
                                             <Checkbox
                                                 checked={isSelected}
-                                                onChange={() => onSelect(category.id)}
+                                                onCheckedChange={() => onSelect(category.id)}
                                             />
                                         </div>
                                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 cursor-pointer">
                                             <CardTitle className="text-xl font-bold">{category.name}</CardTitle>
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}>
-                                                    <Button variant="ghost" size="icon">
+                                                    <Button variant="ghost" size="icon" className="group-hover:bg-muted">
                                                         <MoreHorizontal className="h-4 w-4" />
                                                     </Button>
                                                 </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
+                                                <DropdownMenuContent align="end" onClick={e => e.stopPropagation()}>
                                                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                    <DropdownMenuItem className="gap-2">
-                                                        <Pencil className="h-4 w-4" /> Edit
-                                                    </DropdownMenuItem>
+                                                    <CategoryDialog category={category}>
+                                                        <DropdownMenuItem onSelect={e => e.preventDefault()} className="gap-2 focus:bg-accent focus:text-accent-foreground">
+                                                            <Pencil className="h-4 w-4" /> Edit
+                                                        </DropdownMenuItem>
+                                                    </CategoryDialog>
                                                     <DropdownMenuSeparator />
-                                                    <DropdownMenuItem className="gap-2 text-destructive" onClick={() => onDelete(category.id)}>
+                                                    <DropdownMenuItem
+                                                        className="gap-2 text-destructive"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            onDelete(category.id);
+                                                        }}
+                                                    >
                                                         <Trash2 className="h-4 w-4" /> Delete
                                                     </DropdownMenuItem>
                                                 </DropdownMenuContent>
@@ -301,7 +309,7 @@ export default function CategoriesPage() {
                         onConfirm={confirmAction?.onConfirm || (() => { })}
                         title={confirmAction?.title || ""}
                         description={confirmAction?.description || ""}
-                        variant={confirmAction?.title.includes("Delete") ? "destructive" : "default"}
+                        variant={confirmAction?.title?.includes("Delete") ? "destructive" : "default"}
                     />
                 </div>
             )}

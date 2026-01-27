@@ -78,3 +78,45 @@ export async function POST(req: Request) {
         return new NextResponse("Internal Error", { status: 500 })
     }
 }
+
+export async function DELETE(req: Request) {
+    try {
+        const session = await getServerSession(authOptions)
+        if (!session) {
+            return new NextResponse("Unauthorized", { status: 401 })
+        }
+
+        const body = await req.json()
+        const { ids } = body
+
+        if (!ids || !Array.isArray(ids) || ids.length === 0) {
+            return new NextResponse("IDs are required", { status: 400 })
+        }
+
+        // Check if any category has products
+        const productsCount = await prisma.product.count({
+            where: {
+                categoryId: {
+                    in: ids
+                }
+            }
+        })
+
+        if (productsCount > 0) {
+            return new NextResponse("Some categories cannot be deleted because they have associated products", { status: 400 })
+        }
+
+        await prisma.category.deleteMany({
+            where: {
+                id: {
+                    in: ids
+                }
+            }
+        })
+
+        return NextResponse.json({ success: true })
+    } catch (error) {
+        console.error("[CATEGORIES_DELETE_BULK]", error)
+        return new NextResponse("Internal Error", { status: 500 })
+    }
+}

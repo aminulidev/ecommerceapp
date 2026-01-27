@@ -122,3 +122,41 @@ export function useBulkArchiveProducts() {
         },
     })
 }
+
+export function useDeleteProduct() {
+    const queryClient = useQueryClient()
+    return useMutation({
+        mutationFn: async (productId: string) => {
+            const response = await fetch(`/api/products/${productId}`, {
+                method: "DELETE",
+            })
+            if (!response.ok) {
+                throw new Error("Failed to delete product")
+            }
+            return response.json()
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["products"] })
+        },
+    })
+}
+
+export function useBulkDeleteProducts() {
+    const queryClient = useQueryClient()
+    return useMutation({
+        mutationFn: async (ids: string[]) => {
+            const response = await fetch("/api/products", {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ids }),
+            })
+            if (!response.ok) {
+                throw new Error("Failed to delete products")
+            }
+            return response.json()
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["products"] })
+        },
+    })
+}

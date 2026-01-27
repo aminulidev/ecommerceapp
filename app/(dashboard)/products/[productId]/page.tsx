@@ -13,12 +13,19 @@ import {
     ChevronLeft,
     Save,
     Loader2,
-    ImagePlus,
     Trash2,
     X
 } from "lucide-react"
 import Link from "next/link"
 import { useQueryClient } from "@tanstack/react-query"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
+import { ImageDropzone } from "@/components/image-dropzone"
 
 export default function ProductFormPage() {
     const params = useParams()
@@ -201,18 +208,22 @@ export default function ProductFormPage() {
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="category">Category</Label>
-                                    <select
-                                        id="category"
-                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                    <Select
                                         value={formData.categoryId}
-                                        onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
+                                        onValueChange={(value) => setFormData({ ...formData, categoryId: value })}
                                         required
                                     >
-                                        <option value="">Select Category</option>
-                                        {categoriesData?.categories?.map((cat: any) => (
-                                            <option key={cat.id} value={cat.id}>{cat.name}</option>
-                                        ))}
-                                    </select>
+                                        <SelectTrigger id="category" className="w-full">
+                                            <SelectValue placeholder="Select Category" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {categoriesData?.categories?.map((cat: any) => (
+                                                <SelectItem key={cat.id} value={cat.id}>
+                                                    {cat.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
                                 </div>
                             </div>
                         </CardContent>
@@ -225,39 +236,11 @@ export default function ProductFormPage() {
                             <CardTitle>Product Image</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="space-y-4">
-                                <div className="relative aspect-square rounded-lg border-2 border-dashed border-muted-foreground/25 flex items-center justify-center overflow-hidden bg-muted/50">
-                                    {formData.image ? (
-                                        <>
-                                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                                            <img src={formData.image} alt="Preview" className="h-full w-full object-cover" />
-                                            <Button
-                                                type="button"
-                                                variant="destructive"
-                                                size="icon"
-                                                className="absolute top-2 right-2 h-6 w-6"
-                                                onClick={() => setFormData({ ...formData, image: "" })}
-                                            >
-                                                <X className="h-4 w-4" />
-                                            </Button>
-                                        </>
-                                    ) : (
-                                        <div className="flex flex-col items-center gap-2 text-muted-foreground text-center p-4">
-                                            <ImagePlus className="h-8 w-8" />
-                                            <span className="text-xs">Provide a URL for the image</span>
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="image">Image URL</Label>
-                                    <Input
-                                        id="image"
-                                        placeholder="https://example.com/image.jpg"
-                                        value={formData.image}
-                                        onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                                    />
-                                </div>
-                            </div>
+                            <ImageDropzone
+                                value={formData.image}
+                                onChange={(value) => setFormData({ ...formData, image: value })}
+                                disabled={loading}
+                            />
                         </CardContent>
                     </Card>
 

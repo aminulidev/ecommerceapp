@@ -1,5 +1,5 @@
 
-import { useQuery, useInfiniteQuery } from "@tanstack/react-query"
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 
 export interface Category {
     id: string
@@ -56,5 +56,45 @@ export function useCategories(params?: FetchCategoriesParams) {
     return useQuery({
         queryKey: ["categories", params],
         queryFn: () => fetchCategories(params || {}),
+    })
+}
+
+export function useDeleteCategory() {
+    const queryClient = useQueryClient()
+    return useMutation({
+        mutationFn: async (categoryId: string) => {
+            const response = await fetch(`/api/categories/${categoryId}`, {
+                method: "DELETE",
+            })
+            if (!response.ok) {
+                const error = await response.text()
+                throw new Error(error || "Failed to delete category")
+            }
+            return response.json()
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["categories"] })
+        },
+    })
+}
+
+export function useBulkDeleteCategories() {
+    const queryClient = useQueryClient()
+    return useMutation({
+        mutationFn: async (ids: string[]) => {
+            const response = await fetch("/api/categories", {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ids }),
+            })
+            if (!response.ok) {
+                const error = await response.text()
+                throw new Error(error || "Failed to delete categories")
+            }
+            return response.json()
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["categories"] })
+        },
     })
 }

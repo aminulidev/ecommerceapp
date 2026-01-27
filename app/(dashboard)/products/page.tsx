@@ -2,7 +2,7 @@
 "use client"
 
 import * as React from "react"
-import { useInfiniteProducts, useUpdateProduct, useBulkArchiveProducts } from "@/hooks/use-products"
+import { useInfiniteProducts, useUpdateProduct, useBulkArchiveProducts, useDeleteProduct, useBulkDeleteProducts } from "@/hooks/use-products"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -63,7 +63,9 @@ export default function ProductsPage() {
     } = useInfiniteProducts({ search: debouncedSearch, isArchived: false })
 
     const updateProduct = useUpdateProduct()
+    const deleteProduct = useDeleteProduct()
     const bulkArchive = useBulkArchiveProducts()
+    const bulkDelete = useBulkDeleteProducts()
 
     const handleReset = () => {
         setSearch("")
@@ -108,9 +110,13 @@ export default function ProductsPage() {
             title: `Delete ${selectedIds.length} products?`,
             description: "This action is permanent and cannot be undone. All selected products will be removed.",
             onConfirm: () => {
-                toast.success(`Successfully deleted ${selectedIds.length} products`)
-                setSelectedIds([])
-                setIsConfirmOpen(false)
+                bulkDelete.mutate(selectedIds, {
+                    onSuccess: () => {
+                        toast.success(`Successfully deleted ${selectedIds.length} products`)
+                        setSelectedIds([])
+                        setIsConfirmOpen(false)
+                    }
+                })
             }
         })
         setIsConfirmOpen(true)
@@ -249,7 +255,7 @@ export default function ProductsPage() {
                                                             </Badge>
                                                         </td>
                                                         <td className="p-4 align-middle font-medium">
-                                                            ${product.price.toFixed(2)}
+                                                            ${product.price ? product.price.toFixed(2) : "0.00"}
                                                         </td>
                                                         <td className="p-4 align-middle">
                                                             <div className="flex items-center gap-2">
@@ -286,7 +292,24 @@ export default function ProductsPage() {
                                                                         <Archive className="h-4 w-4" /> Archive Product
                                                                     </DropdownMenuItem>
                                                                     <DropdownMenuSeparator />
-                                                                    <DropdownMenuItem className="flex items-center gap-2 text-destructive">
+                                                                    <DropdownMenuItem
+                                                                        className="flex items-center gap-2 text-destructive"
+                                                                        onClick={() => {
+                                                                            setConfirmAction({
+                                                                                title: "Delete Product?",
+                                                                                description: "This action is permanent and cannot be undone.",
+                                                                                onConfirm: () => {
+                                                                                    deleteProduct.mutate(product.id, {
+                                                                                        onSuccess: () => {
+                                                                                            toast.success("Product deleted")
+                                                                                            setIsConfirmOpen(false)
+                                                                                        }
+                                                                                    })
+                                                                                }
+                                                                            })
+                                                                            setIsConfirmOpen(true)
+                                                                        }}
+                                                                    >
                                                                         <Trash2 className="h-4 w-4" /> Delete Product
                                                                     </DropdownMenuItem>
                                                                 </DropdownMenuContent>
@@ -312,7 +335,7 @@ export default function ProductsPage() {
                                 onConfirm={confirmAction?.onConfirm || (() => { })}
                                 title={confirmAction?.title || ""}
                                 description={confirmAction?.description || ""}
-                                variant={confirmAction?.title.includes("Delete") ? "destructive" : "default"}
+                                variant={confirmAction?.title?.includes("Delete") ? "destructive" : "default"}
                             />
                         </div>
                     )}

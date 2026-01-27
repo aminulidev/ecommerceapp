@@ -119,7 +119,7 @@ async function main() {
                     stock,
                     sku: `SKU-${category.name.substring(0, 3).toUpperCase()}-${i}-${Math.floor(Math.random() * 1000)}`,
                     categoryId: category.id,
-                    image: `/images/products/${category.name.toLowerCase().replace(/ /g, '-')}-${i}.jpg`
+                    image: null
                 }
             })
             products.push(product)

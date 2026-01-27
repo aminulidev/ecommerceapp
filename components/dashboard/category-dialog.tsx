@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import {
     Sheet,
@@ -16,8 +16,22 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Loader2, Plus } from "lucide-react"
+import { toast } from "sonner"
 
-export function CategoryDialog({ children }: { children?: React.ReactNode }) {
+interface Category {
+    id: string
+    name: string
+    description: string
+    icon?: string | null
+}
+
+export function CategoryDialog({
+    children,
+    category
+}: {
+    children?: React.ReactNode,
+    category?: Category
+}) {
     const [open, setOpen] = useState(false)
     const [loading, setLoading] = useState(false)
     const queryClient = useQueryClient()
@@ -27,22 +41,51 @@ export function CategoryDialog({ children }: { children?: React.ReactNode }) {
         icon: "layout-grid"
     })
 
+    const isEdit = !!category
+
+    useEffect(() => {
+        if (category) {
+            setFormData({
+                name: category.name,
+                description: category.description,
+                icon: category.icon || "layout-grid"
+            })
+        } else {
+            setFormData({
+                name: "",
+                description: "",
+                icon: "layout-grid"
+            })
+        }
+    }, [category, open])
+
     const onSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setLoading(true)
         try {
-            const response = await fetch("/api/categories", {
-                method: "POST",
+            const url = isEdit ? `/api/categories/${category.id}` : "/api/categories"
+            const method = isEdit ? "PATCH" : "POST"
+
+            const response = await fetch(url, {
+                method,
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(formData)
             })
+
             if (response.ok) {
                 queryClient.invalidateQueries({ queryKey: ["categories"] })
                 setOpen(false)
-                setFormData({ name: "", description: "", icon: "layout-grid" })
+                if (!isEdit) {
+                    setFormData({ name: "", description: "", icon: "layout-grid" })
+                }
+                toast.success(isEdit ? "Category updated" : "Category created")
+            } else {
+                const error = await response.text()
+                toast.error(error || "Failed to save category")
             }
         } catch (error) {
             console.error(error)
+            toast.error("An error occurred")
         } finally {
             setLoading(false)
         }
@@ -60,12 +103,12 @@ export function CategoryDialog({ children }: { children?: React.ReactNode }) {
             <SheetContent>
                 <form onSubmit={onSubmit} className="h-full flex flex-col">
                     <SheetHeader>
-                        <SheetTitle>Add Category</SheetTitle>
+                        <SheetTitle>{isEdit ? "Edit Category" : "Add Category"}</SheetTitle>
                         <SheetDescription>
-                            Create a new category to organize your products.
+                            {isEdit ? "Update category details." : "Create a new category to organize your products."}
                         </SheetDescription>
                     </SheetHeader>
-                    <div className="grid gap-4 py-4 flex-1">
+                    <div className="grid gap-4 p-4 flex-1">
                         <div className="space-y-2">
                             <Label htmlFor="name">Name</Label>
                             <Input
@@ -91,7 +134,7 @@ export function CategoryDialog({ children }: { children?: React.ReactNode }) {
                     <SheetFooter>
                         <Button type="submit" className="w-full" disabled={loading}>
                             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Create Category
+                            {isEdit ? "Save Changes" : "Create Category"}
                         </Button>
                     </SheetFooter>
                 </form>
