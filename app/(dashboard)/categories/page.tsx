@@ -182,7 +182,7 @@ export default function CategoriesPage() {
                         <Checkbox
                             id="select-all"
                             checked={isAllSelected}
-                            onCheckedChange={(checked) => onSelectAll(!!checked)}
+                            onChange={(e) => onSelectAll(e.target.checked)}
                         />
                         <label htmlFor="select-all" className="cursor-pointer">Select All</label>
                     </div>
@@ -237,7 +237,7 @@ export default function CategoriesPage() {
                                         <div className="absolute top-3 right-3 z-10" onClick={e => e.stopPropagation()}>
                                             <Checkbox
                                                 checked={isSelected}
-                                                onCheckedChange={() => onSelect(category.id)}
+                                                onChange={() => onSelect(category.id)}
                                             />
                                         </div>
                                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 cursor-pointer">

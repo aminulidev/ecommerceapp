@@ -14,6 +14,7 @@ export interface Product {
         id: string
         name: string
     }
+    isArchived: boolean
     createdAt: string
     updatedAt: string
 }
