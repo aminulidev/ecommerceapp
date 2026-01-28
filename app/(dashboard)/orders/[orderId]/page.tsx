@@ -69,7 +69,7 @@ export default function OrderDetailsPage() {
         <div className="space-y-6 max-w-6xl mx-auto">
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                    <Button variant="outline" size="icon" asChild>
+                    <Button variant="outline" size="icon" asChild className="print:hidden">
                         <Link href="/orders">
                             <ArrowLeft className="h-4 w-4" />
                         </Link>
@@ -88,23 +88,25 @@ export default function OrderDetailsPage() {
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
-                    <Select
-                        value={order.status}
-                        onValueChange={(s) => updateStatus.mutate({ orderId, status: s })}
-                        disabled={updateStatus.isPending}
-                    >
-                        <SelectTrigger className="w-[180px]">
-                            <SelectValue placeholder="Update Status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {Object.keys(statusConfig).map((s) => (
-                                <SelectItem key={s} value={s}>
-                                    {statusConfig[s].label}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                    <Button>Print Invoice</Button>
+                    <div className="flex items-center gap-3 print:hidden">
+                        <Select
+                            value={order.status}
+                            onValueChange={(s) => updateStatus.mutate({ orderId, status: s })}
+                            disabled={updateStatus.isPending}
+                        >
+                            <SelectTrigger className="w-[180px]">
+                                <SelectValue placeholder="Update Status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {Object.keys(statusConfig).map((s) => (
+                                    <SelectItem key={s} value={s}>
+                                        {statusConfig[s].label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <Button onClick={() => window.print()}>Print Invoice</Button>
+                    </div>
                 </div>
             </div>
 

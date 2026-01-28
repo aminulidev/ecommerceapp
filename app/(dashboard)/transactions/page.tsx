@@ -2,7 +2,7 @@
 "use client"
 
 import * as React from "react"
-import { useInfiniteTransactions } from "@/hooks/use-transactions"
+import { useInfiniteTransactions, useDeleteTransaction, useBulkDeleteTransactions, useUpdateTransaction, Transaction } from "@/hooks/use-transactions"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -16,7 +16,9 @@ import {
     Wallet,
     Landmark,
     Trash2,
-    Download
+    Download,
+    Eye,
+    Undo2
 } from "lucide-react"
 import {
     DropdownMenu,
@@ -32,6 +34,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { BulkActionBar } from "@/components/shared/bulk-action-bar"
 import { toast } from "sonner"
 import { ConfirmDialog } from "@/components/shared/confirm-dialog"
+import { ReceiptDialog } from "@/components/dashboard/receipt-dialog"
 import { cn } from "@/lib/utils"
 
 const typeConfig: Record<string, { label: string; icon: any; color: string }> = {
@@ -51,6 +54,8 @@ export default function TransactionsPage() {
         description: string
         onConfirm: () => void
     } | null>(null)
+    const [isReceiptOpen, setIsReceiptOpen] = React.useState(false)
+    const [selectedTransaction, setSelectedTransaction] = React.useState<Transaction | null>(null)
 
     React.useEffect(() => {
         const timer = setTimeout(() => {
@@ -66,6 +71,10 @@ export default function TransactionsPage() {
         hasNextPage,
         isFetchingNextPage
     } = useInfiniteTransactions({ search: debouncedSearch })
+
+    const deleteTransaction = useDeleteTransaction()
+    const bulkDelete = useBulkDeleteTransactions()
+    const updateTransaction = useUpdateTransaction()
 
     const handleReset = () => {
         setSearch("")
@@ -89,9 +98,32 @@ export default function TransactionsPage() {
     }
 
     const handleBulkExport = () => {
-        toast.info(`Exporting ${selectedIds.length} transactions...`, {
-            description: "Your download will begin shortly."
-        })
+        if (selectedIds.length === 0) return
+
+        const selectedTransactions = transactions.filter(t => selectedIds.includes(t.id))
+        const csvContent = [
+            ["Invoice", "Type", "Description", "Amount", "Status", "Date"],
+            ...selectedTransactions.map(t => [
+                t.invoiceNumber,
+                t.type,
+                t.description,
+                t.amount,
+                t.status,
+                format(new Date(t.date), "yyyy-MM-dd HH:mm")
+            ])
+        ].map(e => e.join(",")).join("\n")
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+        const link = document.createElement("a")
+        const url = URL.createObjectURL(blob)
+        link.setAttribute("href", url)
+        link.setAttribute("download", `transactions_${format(new Date(), "yyyy-MM-dd")}.csv`)
+        link.style.visibility = 'hidden'
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+
+        toast.success(`Exported ${selectedIds.length} transactions`)
         setSelectedIds([])
     }
 
@@ -100,12 +132,59 @@ export default function TransactionsPage() {
             title: `Delete ${selectedIds.length} transactions?`,
             description: "This action cannot be undone. These records will be permanently removed.",
             onConfirm: () => {
-                toast.success(`Successfully deleted ${selectedIds.length} transactions`)
-                setSelectedIds([])
-                setIsConfirmOpen(false)
+                bulkDelete.mutate(selectedIds, {
+                    onSuccess: () => {
+                        toast.success(`Successfully deleted ${selectedIds.length} transactions`)
+                        setSelectedIds([])
+                        setIsConfirmOpen(false)
+                    },
+                    onError: (error: any) => {
+                        toast.error(error.message || "Failed to delete transactions")
+                    }
+                })
             }
         })
         setIsConfirmOpen(true)
+    }
+
+    const onDelete = (id: string) => {
+        setConfirmAction({
+            title: "Delete transaction?",
+            description: "This will permanently remove this transaction record. This action cannot be undone.",
+            onConfirm: () => {
+                deleteTransaction.mutate(id, {
+                    onSuccess: () => {
+                        toast.success("Transaction deleted successfully")
+                        setIsConfirmOpen(false)
+                    }
+                })
+            }
+        })
+        setIsConfirmOpen(true)
+    }
+
+    const onRefund = (transaction: Transaction) => {
+        setConfirmAction({
+            title: "Refund transaction?",
+            description: `Are you sure you want to refund ${transaction.invoiceNumber}? This will mark the transaction as REFUNDED.`,
+            onConfirm: () => {
+                updateTransaction.mutate({
+                    transactionId: transaction.id,
+                    status: "REFUNDED"
+                }, {
+                    onSuccess: () => {
+                        toast.success("Transaction refunded successfully")
+                        setIsConfirmOpen(false)
+                    }
+                })
+            }
+        })
+        setIsConfirmOpen(true)
+    }
+
+    const onViewReceipt = (transaction: Transaction) => {
+        setSelectedTransaction(transaction)
+        setIsReceiptOpen(true)
     }
 
     const bulkActions = [
@@ -224,7 +303,7 @@ export default function TransactionsPage() {
                                                             +${tx.amount.toLocaleString()}
                                                         </td>
                                                         <td className="p-4 align-middle">
-                                                            <Badge variant={tx.status === "COMPLETED" ? "default" : tx.status === "PENDING" ? "secondary" : "destructive"}>
+                                                            <Badge variant={tx.status === "COMPLETED" ? "default" : tx.status === "PENDING" ? "secondary" : tx.status === "REFUNDED" ? "outline" : "destructive"}>
                                                                 {tx.status}
                                                             </Badge>
                                                         </td>
@@ -240,8 +319,20 @@ export default function TransactionsPage() {
                                                                 </DropdownMenuTrigger>
                                                                 <DropdownMenuContent align="end">
                                                                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                                    <DropdownMenuItem>View Receipt</DropdownMenuItem>
-                                                                    <DropdownMenuItem>Refund</DropdownMenuItem>
+                                                                    <DropdownMenuItem onClick={() => onViewReceipt(tx)} className="gap-2">
+                                                                        <Eye className="h-4 w-4" /> View Receipt
+                                                                    </DropdownMenuItem>
+                                                                    <DropdownMenuItem
+                                                                        onClick={() => onRefund(tx)}
+                                                                        className="gap-2"
+                                                                        disabled={tx.status === "REFUNDED" || tx.status === "FAILED"}
+                                                                    >
+                                                                        <Undo2 className="h-4 w-4" /> Refund
+                                                                    </DropdownMenuItem>
+                                                                    <DropdownMenuSeparator />
+                                                                    <DropdownMenuItem onClick={() => onDelete(tx.id)} className="gap-2 text-destructive">
+                                                                        <Trash2 className="h-4 w-4" /> Delete
+                                                                    </DropdownMenuItem>
                                                                 </DropdownMenuContent>
                                                             </DropdownMenu>
                                                         </td>
@@ -265,7 +356,13 @@ export default function TransactionsPage() {
                                 onConfirm={confirmAction?.onConfirm || (() => { })}
                                 title={confirmAction?.title || ""}
                                 description={confirmAction?.description || ""}
-                                variant={confirmAction?.title.includes("Delete") ? "destructive" : "default"}
+                                variant={confirmAction?.title?.includes("Delete") ? "destructive" : "default"}
+                            />
+
+                            <ReceiptDialog
+                                transaction={selectedTransaction}
+                                isOpen={isReceiptOpen}
+                                onClose={() => setIsReceiptOpen(false)}
                             />
                         </div>
                     )}

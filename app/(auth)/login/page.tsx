@@ -73,7 +73,7 @@ export default function LoginPage() {
                             </div>
                         </div>
                     </CardContent>
-                    <CardFooter className="flex justify-between">
+                    <CardFooter className="flex justify-between mt-4 sm:mt-6">
                         <Button variant="outline" type="button" onClick={() => {
                             setEmail("admin@example.com")
                             setPassword("password123")

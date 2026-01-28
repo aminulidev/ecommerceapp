@@ -5,6 +5,7 @@ export interface DashboardStats {
     totalSales: number
     totalCustomers: number
     totalProducts: number
+    averageOrderValue: number
     revenueData: {
         month: string
         earning: number
@@ -28,6 +29,19 @@ export interface DashboardStats {
     customerGrowthData: {
         month: string
         customers: number
+    }[]
+    revenueByCategory: {
+        name: string
+        revenue: number
+    }[]
+    paymentMethodData: {
+        name: string
+        value: number
+    }[]
+    salesTrendData: {
+        date: string
+        sales: number
+        orders: number
     }[]
 }
 

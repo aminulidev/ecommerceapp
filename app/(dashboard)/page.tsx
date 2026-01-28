@@ -5,10 +5,11 @@ import { StatsCard } from "@/components/dashboard/stats-card"
 import { RevenueChart } from "@/components/dashboard/revenue-chart"
 import { PopularProducts } from "@/components/dashboard/popular-products"
 import { useDashboardStats } from "@/hooks/use-dashboard-stats"
-import { Users, ShoppingBag, DollarSign, Package } from "lucide-react"
+import { Users, ShoppingBag, DollarSign, Package, TrendingUp } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { WidgetErrorBoundary } from "@/components/shared/error-boundary"
-import { CustomerGrowthChart, DistributionChart } from "@/components/dashboard/overview-charts"
+import { CustomerGrowthChart, DistributionChart, RevenueByCategoryChart } from "@/components/dashboard/overview-charts"
+import { SalesTrendsChart } from "@/components/dashboard/sales-trends"
 
 export default function DashboardPage() {
     const { data, isLoading } = useDashboardStats()
@@ -53,17 +54,22 @@ export default function DashboardPage() {
                         description="In inventory"
                     />
                 </WidgetErrorBoundary>
-                <WidgetErrorBoundary fallbackTitle="Revenue Stats">
+                <WidgetErrorBoundary fallbackTitle="Order Value">
                     <StatsCard
-                        title="Revenue"
-                        value="$42,500" // Mock
-                        icon={ShoppingBag}
-                        trend={18.2}
+                        title="Avg Order Value"
+                        value={`$${data.averageOrderValue.toLocaleString(undefined, { maximumFractionDigits: 1 })}`}
+                        icon={TrendingUp}
+                        trend={5.4}
                         color="info"
-                        description="This month"
+                        description="Per transaction"
                     />
                 </WidgetErrorBoundary>
             </div>
+
+            {/* Sales Trends Section */}
+            <WidgetErrorBoundary fallbackTitle="Sales Trends">
+                <SalesTrendsChart data={data.salesTrendData} />
+            </WidgetErrorBoundary>
 
             {/* Main Content Grid */}
             <div className="grid gap-6 md:grid-cols-7">
@@ -79,37 +85,45 @@ export default function DashboardPage() {
                 </div>
             </div>
 
-            {/* Extra Charts Grid */}
+            {/* distribution Grid */}
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                <WidgetErrorBoundary fallbackTitle="Category Distribution">
+                    <DistributionChart
+                        data={data.categoryData}
+                        title="Categories"
+                        description="Product distribution"
+                        legend={true}
+                    />
+                </WidgetErrorBoundary>
+                <WidgetErrorBoundary fallbackTitle="Payment Methods">
+                    <DistributionChart
+                        data={data.paymentMethodData}
+                        title="Payment Methods"
+                        description="Preferred checkout options"
+                        innerRadius={50}
+                    />
+                </WidgetErrorBoundary>
+                <WidgetErrorBoundary fallbackTitle="Order Status">
+                    <DistributionChart
+                        data={data.orderStatusData}
+                        title="Order Status"
+                        description="Fulfillment stages"
+                        innerRadius={0}
+                    />
+                </WidgetErrorBoundary>
+            </div>
+
+            {/* Additional Analytics */}
             <div className="grid gap-6 md:grid-cols-7">
                 <div className="col-span-4">
+                    <WidgetErrorBoundary fallbackTitle="Revenue by Category">
+                        <RevenueByCategoryChart data={data.revenueByCategory} />
+                    </WidgetErrorBoundary>
+                </div>
+                <div className="col-span-3">
                     <WidgetErrorBoundary fallbackTitle="Customer Growth">
                         <CustomerGrowthChart data={data.customerGrowthData} />
                     </WidgetErrorBoundary>
-                </div>
-                <div className="col-span-3">
-                    <WidgetErrorBoundary fallbackTitle="Category Distribution">
-                        <DistributionChart
-                            data={data.categoryData}
-                            title="Categories"
-                            description="Product distribution by category"
-                            legend={false}
-                        />
-                    </WidgetErrorBoundary>
-                </div>
-            </div>
-
-            <div className="grid gap-6 md:grid-cols-7">
-                <div className="col-span-3">
-                    <WidgetErrorBoundary fallbackTitle="Order Status">
-                        <DistributionChart
-                            data={data.orderStatusData}
-                            title="Order Status"
-                            description="Distribution of all orders by status"
-                        />
-                    </WidgetErrorBoundary>
-                </div>
-                <div className="col-span-4 flex items-center justify-center border-2 border-dashed rounded-xl p-8 text-muted-foreground italic">
-                    More widgets coming soon...
                 </div>
             </div>
         </div>

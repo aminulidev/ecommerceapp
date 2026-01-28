@@ -63,6 +63,54 @@ export function CustomerGrowthChart({ data }: CustomerGrowthChartProps) {
     )
 }
 
+interface RevenueByCategoryChartProps {
+    data: {
+        name: string
+        revenue: number
+    }[]
+}
+
+export function RevenueByCategoryChart({ data }: RevenueByCategoryChartProps) {
+    return (
+        <Card className="col-span-4">
+            <CardHeader>
+                <CardTitle>Revenue by Category</CardTitle>
+                <CardDescription>Performance comparison across categories</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="h-[300px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={data} layout="vertical">
+                            <CartesianGrid strokeDasharray="3 3" horizontal={false} className="stroke-muted" />
+                            <XAxis type="number" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} />
+                            <YAxis dataKey="name" type="category" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} width={80} />
+                            <Tooltip
+                                formatter={(value: number | string | undefined) => [
+                                    value !== undefined ? `$${Number(value).toLocaleString()}` : "$0",
+                                    "Revenue"
+                                ]}
+                                contentStyle={{
+                                    backgroundColor: 'var(--background)',
+                                    borderColor: 'var(--border)',
+                                    borderRadius: 'var(--radius)',
+                                    fontSize: '12px'
+                                }}
+                            />
+                            <Line
+                                type="monotone"
+                                dataKey="revenue"
+                                stroke="var(--primary)"
+                                strokeWidth={2}
+                                dot={{ fill: 'var(--primary)', strokeWidth: 2, r: 4 }}
+                            />
+                        </LineChart>
+                    </ResponsiveContainer>
+                </div>
+            </CardContent>
+        </Card>
+    )
+}
+
 interface DistributionChartProps {
     data: {
         name: string
@@ -71,9 +119,10 @@ interface DistributionChartProps {
     title: string
     description: string
     legend?: boolean
+    innerRadius?: number
 }
 
-export function DistributionChart({ data, title, description, legend = true }: DistributionChartProps) {
+export function DistributionChart({ data, title, description, legend = true, innerRadius = 60 }: DistributionChartProps) {
     return (
         <Card className="col-span-3">
             <CardHeader>
@@ -88,7 +137,7 @@ export function DistributionChart({ data, title, description, legend = true }: D
                                 data={data}
                                 cx="50%"
                                 cy="50%"
-                                innerRadius={60}
+                                innerRadius={innerRadius}
                                 outerRadius={80}
                                 paddingAngle={5}
                                 dataKey="value"
@@ -105,7 +154,7 @@ export function DistributionChart({ data, title, description, legend = true }: D
                                     fontSize: '12px'
                                 }}
                             />
-                            {legend && <Legend verticalAlign="bottom" height={36} />}
+                            {legend && <Legend verticalAlign="bottom" height={36} iconType="circle" />}
                         </PieChart>
                     </ResponsiveContainer>
                 </div>

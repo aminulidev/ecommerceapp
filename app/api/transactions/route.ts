@@ -49,3 +49,32 @@ export async function GET(req: Request) {
         return new NextResponse("Internal Error", { status: 500 })
     }
 }
+
+export async function DELETE(req: Request) {
+    try {
+        const session = await getServerSession(authOptions)
+        if (!session) {
+            return new NextResponse("Unauthorized", { status: 401 })
+        }
+
+        const body = await req.json()
+        const { ids } = body
+
+        if (!ids || !Array.isArray(ids)) {
+            return new NextResponse("Invalid request", { status: 400 })
+        }
+
+        await prisma.transaction.deleteMany({
+            where: {
+                id: {
+                    in: ids,
+                },
+            },
+        })
+
+        return NextResponse.json({ success: true })
+    } catch (error) {
+        console.error("[TRANSACTIONS_BULK_DELETE]", error)
+        return new NextResponse("Internal Error", { status: 500 })
+    }
+}

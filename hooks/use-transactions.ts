@@ -1,5 +1,5 @@
 
-import { useQuery, useInfiniteQuery } from "@tanstack/react-query"
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from "@tanstack/react-query"
 
 export interface Transaction {
     id: string
@@ -57,5 +57,63 @@ export function useTransactions(params?: FetchTransactionsParams) {
     return useQuery({
         queryKey: ["transactions", params],
         queryFn: () => fetchTransactions(params || {}),
+    })
+}
+
+export function useUpdateTransaction() {
+    const queryClient = useQueryClient()
+    return useMutation({
+        mutationFn: async ({ transactionId, ...data }: { transactionId: string } & Partial<Transaction>) => {
+            const response = await fetch(`/api/transactions/${transactionId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(data),
+            })
+            if (!response.ok) {
+                throw new Error("Failed to update transaction")
+            }
+            return response.json()
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["transactions"] })
+        },
+    })
+}
+
+export function useDeleteTransaction() {
+    const queryClient = useQueryClient()
+    return useMutation({
+        mutationFn: async (transactionId: string) => {
+            const response = await fetch(`/api/transactions/${transactionId}`, {
+                method: "DELETE",
+            })
+            if (!response.ok) {
+                throw new Error("Failed to delete transaction")
+            }
+            return response.json()
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["transactions"] })
+        },
+    })
+}
+
+export function useBulkDeleteTransactions() {
+    const queryClient = useQueryClient()
+    return useMutation({
+        mutationFn: async (ids: string[]) => {
+            const response = await fetch("/api/transactions", {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ids }),
+            })
+            if (!response.ok) {
+                throw new Error("Failed to delete transactions")
+            }
+            return response.json()
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["transactions"] })
+        },
     })
 }
