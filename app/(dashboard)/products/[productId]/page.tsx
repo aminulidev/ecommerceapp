@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/select"
 import { ImageDropzone } from "@/components/image-dropzone"
 import { toast } from "sonner"
+import { ConfirmDialog } from "@/components/shared/confirm-dialog"
 
 export default function ProductFormPage() {
     const params = useParams()
@@ -48,6 +49,7 @@ export default function ProductFormPage() {
         categoryId: "",
         image: ""
     })
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
 
     useEffect(() => {
         if (product && !isNew) {
@@ -94,7 +96,6 @@ export default function ProductFormPage() {
     }
 
     const onDelete = async () => {
-        if (!window.confirm("Are you sure?")) return
         setLoading(true)
 
         try {
@@ -105,11 +106,14 @@ export default function ProductFormPage() {
             if (!response.ok) throw new Error("Something went wrong")
 
             queryClient.invalidateQueries({ queryKey: ["products"] })
+            toast.success("Product deleted")
             router.push("/products")
-        } catch (error) {
+        } catch (error: any) {
             console.error(error)
+            toast.error(error.message || "Failed to delete product")
         } finally {
             setLoading(false)
+            setIsDeleteDialogOpen(false)
         }
     }
 
@@ -136,7 +140,7 @@ export default function ProductFormPage() {
                     </div>
                 </div>
                 {!isNew && (
-                    <Button variant="destructive" size="icon" onClick={onDelete} disabled={loading}>
+                    <Button variant="destructive" size="icon" onClick={() => setIsDeleteDialogOpen(true)} disabled={loading}>
                         <Trash2 className="h-4 w-4" />
                     </Button>
                 )}
@@ -257,6 +261,16 @@ export default function ProductFormPage() {
                     </Button>
                 </div>
             </form>
+
+            <ConfirmDialog
+                isOpen={isDeleteDialogOpen}
+                onClose={() => setIsDeleteDialogOpen(false)}
+                onConfirm={onDelete}
+                title="Delete Product?"
+                description="This action is permanent and cannot be undone. All data for this product will be removed."
+                variant="destructive"
+                isLoading={loading}
+            />
         </div>
     )
 }

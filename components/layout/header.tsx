@@ -16,6 +16,7 @@ import { useSession, signOut } from "next-auth/react"
 import { MobileSidebar } from "./sidebar"
 import { useTheme } from "next-themes"
 import { CommandMenu } from "@/components/shared/command-menu"
+import Link from "next/link"
 
 export function Header() {
     const { data: session } = useSession()
@@ -87,14 +88,20 @@ export function Header() {
                             </div>
                         </DropdownMenuLabel>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem>
-                            Profile
+                        <DropdownMenuItem asChild>
+                            <Link href="/profile" className="cursor-pointer">
+                                Profile
+                            </Link>
                         </DropdownMenuItem>
-                        <DropdownMenuItem>
-                            Settings
+                        <DropdownMenuItem asChild>
+                            <Link href="/settings" className="cursor-pointer">
+                                Settings
+                            </Link>
                         </DropdownMenuItem>
-                        <DropdownMenuItem>
-                            Billing
+                        <DropdownMenuItem asChild>
+                            <Link href="/billing" className="cursor-pointer">
+                                Billing
+                            </Link>
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem className="text-red-500 focus:text-red-500 focus:bg-red-50 dark:focus:bg-red-950/50" onClick={() => signOut()}>
