@@ -102,12 +102,19 @@ export async function POST(req: Request) {
             return new NextResponse("Missing required fields", { status: 400 })
         }
 
+        const parsedPrice = parseFloat(price)
+        const parsedStock = parseInt(stock)
+
+        if (isNaN(parsedPrice) || isNaN(parsedStock)) {
+            return new NextResponse("Price and Stock must be valid numbers", { status: 400 })
+        }
+
         const product = await prisma.product.create({
             data: {
                 name,
                 description,
-                price: parseFloat(price),
-                stock: parseInt(stock),
+                price: parsedPrice,
+                stock: parsedStock,
                 sku,
                 categoryId,
                 image

@@ -26,6 +26,8 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { ImageDropzone } from "@/components/image-dropzone"
+import { toast } from "sonner"
+import { ConfirmDialog } from "@/components/shared/confirm-dialog"
 
 export default function ProductFormPage() {
     const params = useParams()
@@ -35,7 +37,7 @@ export default function ProductFormPage() {
     const isNew = productId === "new"
 
     const { data: product, isLoading: isLoadingProduct } = useProduct(productId)
-    const { data: categoriesData } = useCategories()
+    const { data: categoriesData } = useCategories({ limit: 100 })
 
     const [loading, setLoading] = useState(false)
     const [formData, setFormData] = useState({
@@ -47,6 +49,7 @@ export default function ProductFormPage() {
         categoryId: "",
         image: ""
     })
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
 
     useEffect(() => {
         if (product && !isNew) {
@@ -76,19 +79,23 @@ export default function ProductFormPage() {
                 body: JSON.stringify(formData)
             })
 
-            if (!response.ok) throw new Error("Something went wrong")
+            if (!response.ok) {
+                const errorText = await response.text()
+                throw new Error(errorText || "Something went wrong")
+            }
 
             queryClient.invalidateQueries({ queryKey: ["products"] })
+            toast.success(isNew ? "Product created" : "Product updated")
             router.push("/products")
-        } catch (error) {
+        } catch (error: any) {
             console.error(error)
+            toast.error(error.message || "Failed to save product")
         } finally {
             setLoading(false)
         }
     }
 
     const onDelete = async () => {
-        if (!window.confirm("Are you sure?")) return
         setLoading(true)
 
         try {
@@ -99,11 +106,14 @@ export default function ProductFormPage() {
             if (!response.ok) throw new Error("Something went wrong")
 
             queryClient.invalidateQueries({ queryKey: ["products"] })
+            toast.success("Product deleted")
             router.push("/products")
-        } catch (error) {
+        } catch (error: any) {
             console.error(error)
+            toast.error(error.message || "Failed to delete product")
         } finally {
             setLoading(false)
+            setIsDeleteDialogOpen(false)
         }
     }
 
@@ -130,7 +140,7 @@ export default function ProductFormPage() {
                     </div>
                 </div>
                 {!isNew && (
-                    <Button variant="destructive" size="icon" onClick={onDelete} disabled={loading}>
+                    <Button variant="destructive" size="icon" onClick={() => setIsDeleteDialogOpen(true)} disabled={loading}>
                         <Trash2 className="h-4 w-4" />
                     </Button>
                 )}
@@ -209,6 +219,7 @@ export default function ProductFormPage() {
                                 <div className="space-y-2">
                                     <Label htmlFor="category">Category</Label>
                                     <Select
+                                        key={formData.categoryId}
                                         value={formData.categoryId}
                                         onValueChange={(value) => setFormData({ ...formData, categoryId: value })}
                                         required
@@ -250,6 +261,16 @@ export default function ProductFormPage() {
                     </Button>
                 </div>
             </form>
+
+            <ConfirmDialog
+                isOpen={isDeleteDialogOpen}
+                onClose={() => setIsDeleteDialogOpen(false)}
+                onConfirm={onDelete}
+                title="Delete Product?"
+                description="This action is permanent and cannot be undone. All data for this product will be removed."
+                variant="destructive"
+                isLoading={loading}
+            />
         </div>
     )
 }

@@ -45,20 +45,32 @@ export async function PATCH(
         const body = await req.json()
         const { name, description, price, stock, sku, categoryId, image, isArchived } = body
 
+        const updateData: any = {
+            name,
+            description,
+            sku,
+            categoryId,
+            image,
+            isArchived
+        }
+
+        if (price !== undefined && price !== "") {
+            const parsedPrice = parseFloat(price)
+            if (isNaN(parsedPrice)) return new NextResponse("Invalid price", { status: 400 })
+            updateData.price = parsedPrice
+        }
+
+        if (stock !== undefined && stock !== "") {
+            const parsedStock = parseInt(stock)
+            if (isNaN(parsedStock)) return new NextResponse("Invalid stock", { status: 400 })
+            updateData.stock = parsedStock
+        }
+
         const product = await prisma.product.update({
             where: {
                 id: productId
             },
-            data: {
-                name,
-                description,
-                price: price !== undefined ? parseFloat(price) : undefined,
-                stock: stock !== undefined ? parseInt(stock) : undefined,
-                sku,
-                categoryId,
-                image,
-                isArchived
-            }
+            data: updateData
         })
 
         return NextResponse.json(product)

@@ -2,9 +2,10 @@
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
-import { writeFile } from "fs/promises"
+import { mkdir, writeFile } from "fs/promises"
 import { join } from "path"
 import { v4 as uuidv4 } from "uuid"
+import { existsSync } from "fs"
 
 export async function POST(req: Request) {
     try {
@@ -27,6 +28,12 @@ export async function POST(req: Request) {
         const ext = file.name.split(".").pop()
         const fileName = `${uuidv4()}.${ext}`
         const uploadDir = join(process.cwd(), "public", "uploads")
+
+        // Ensure directory exists
+        if (!existsSync(uploadDir)) {
+            await mkdir(uploadDir, { recursive: true })
+        }
+
         const path = join(uploadDir, fileName)
 
         await writeFile(path, buffer)
