@@ -45,6 +45,10 @@ export function RevenueChart({ data }: RevenueChartProps) {
                                     borderRadius: 'var(--radius)',
                                     fontSize: '12px'
                                 }}
+                                formatter={(value: number | string | undefined) => [
+                                    value !== undefined ? `$${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "$0.00",
+                                    undefined
+                                ]}
                             />
                             <Legend />
                             <Bar

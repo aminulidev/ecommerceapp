@@ -26,6 +26,7 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { ImageDropzone } from "@/components/image-dropzone"
+import { toast } from "sonner"
 
 export default function ProductFormPage() {
     const params = useParams()
@@ -35,7 +36,7 @@ export default function ProductFormPage() {
     const isNew = productId === "new"
 
     const { data: product, isLoading: isLoadingProduct } = useProduct(productId)
-    const { data: categoriesData } = useCategories()
+    const { data: categoriesData } = useCategories({ limit: 100 })
 
     const [loading, setLoading] = useState(false)
     const [formData, setFormData] = useState({
@@ -76,12 +77,17 @@ export default function ProductFormPage() {
                 body: JSON.stringify(formData)
             })
 
-            if (!response.ok) throw new Error("Something went wrong")
+            if (!response.ok) {
+                const errorText = await response.text()
+                throw new Error(errorText || "Something went wrong")
+            }
 
             queryClient.invalidateQueries({ queryKey: ["products"] })
+            toast.success(isNew ? "Product created" : "Product updated")
             router.push("/products")
-        } catch (error) {
+        } catch (error: any) {
             console.error(error)
+            toast.error(error.message || "Failed to save product")
         } finally {
             setLoading(false)
         }
@@ -209,6 +215,7 @@ export default function ProductFormPage() {
                                 <div className="space-y-2">
                                     <Label htmlFor="category">Category</Label>
                                     <Select
+                                        key={formData.categoryId}
                                         value={formData.categoryId}
                                         onValueChange={(value) => setFormData({ ...formData, categoryId: value })}
                                         required
